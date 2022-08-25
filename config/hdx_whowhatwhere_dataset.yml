@@ -1,0 +1,6 @@
+notes: "The International Federation of Red Cross and Red Crescent Societies (IFRC) is the world’s largest humanitarian network. Our secretariat supports local Red Cross and Red Crescent action in more than 192 countries, bringing together almost 15 million volunteers for the good of humanity.\n\nThe 'Who does What, Where' or 3w aims to map the global footprint of the Red Cross Red Crescent Movement. It is a global database of projects conducted by National Societies, IFRC and the ICRC, broken down by sector, location, budget and people targeted and reached."
+license_id: "cc-by-igo"
+methodology: "Registry"
+dataset_source: "IFRC"
+package_creator: "mcarans"
+private: False  # has to be True or False
