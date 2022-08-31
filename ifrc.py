@@ -11,6 +11,7 @@ from copy import deepcopy
 
 from hdx.data.dataset import Dataset
 from hdx.location.country import Country
+from hdx.utilities.dateparse import parse_date
 from slugify import slugify
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,7 @@ class IFRC:
             reached_total = info["reached_total"]
             name = info["name"]
             base_row = {
-                "country.iso": countryiso,
+                "country.iso3": countryiso,
                 "country.name": countryname,
                 "country.society_name": societyname,
                 "primary_sector": primary_sector,
@@ -125,13 +126,15 @@ class IFRC:
                 return None
             title = f"{countryname} - IFRC {heading}"
             name = f"IFRC {heading} Data for {countryname}"
-            filename = f"{heading.lower()}_data_{countryiso}.csv"
+            filename = f"{heading.lower()}_data_{countryiso.lower()}.csv"
             notes = f"There is also a [global dataset]({global_dataset_url})."
         else:
             title = f"Global - IFRC {heading}"
             name = global_name
             filename = f"{heading.lower()}_data_global.csv"
-            notes = f"This data can also be found as individual country datasets on HDX."
+            notes = (
+                f"This data can also be found as individual country datasets on HDX."
+            )
 
         if rows is None:
             return None
@@ -161,6 +164,29 @@ class IFRC:
             "description": f"IFRC {heading} data with HXL tags",
         }
 
+        def process_date(row):
+            start_date = parse_date(row["start_date"])
+            end_date = parse_date(row["end_date"])
+            society = row["country.society_name"]
+            identifier = row.get("aid")
+            if identifier:
+                identifier = f"aid = {identifier}"
+            else:
+                identifier = f"district = {row['district.name']}"
+            if end_date < start_date:
+                logger.warning(f"End date < start date for {society} {identifier}")
+                return None
+            result = dict()
+            if start_date.year > 1900:
+                result["startdate"] = start_date
+            else:
+                logger.warning(f"Start date year < 1900 for {society} {identifier}")
+            if end_date.year > 1900:
+                result["enddate"] = end_date
+            else:
+                logger.warning(f"End date year < 1900 for {society} {identifier}")
+            return result
+
         success, results = dataset.generate_resource_from_iterator(
             list(rows[0].keys()),
             rows,
@@ -168,7 +194,7 @@ class IFRC:
             folder,
             filename,
             resourcedata,
-            "start_date",
+            date_function=process_date,
         )
         if success is False:
             logger.warning(f"{name} has no data!")

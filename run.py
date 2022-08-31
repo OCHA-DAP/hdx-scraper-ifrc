@@ -9,11 +9,7 @@ from os.path import expanduser, join
 from hdx.api.configuration import Configuration
 from hdx.facades.infer_arguments import facade
 from hdx.utilities.downloader import Download
-from hdx.utilities.path import (
-    progress_storing_folder,
-    temp_dir,
-    wheretostart_tempdir_batch,
-)
+from hdx.utilities.path import progress_storing_folder, wheretostart_tempdir_batch
 from hdx.utilities.retriever import Retrieve
 from ifrc import IFRC
 
@@ -25,6 +21,7 @@ updated_by_script = "HDX Scraper: IFRC"
 
 def main(save: bool = False, use_saved: bool = False) -> None:
     """Generate datasets and create them in HDX
+
     Args:
         save (bool): Save downloaded data. Defaults to False.
         use_saved (bool): Use saved data. Defaults to False.
@@ -66,9 +63,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 )
 
             appeals_dataset = ifrc.generate_dataset(folder, appeal_rows, "appeal")
-            create_dataset(
-                appeals_dataset, join("config", "hdx_appeals_dataset.yml")
-            )
+            create_dataset(appeals_dataset, join("config", "hdx_appeals_dataset.yml"))
             whowhatwhere_dataset = ifrc.generate_dataset(
                 folder,
                 whowhatwhere_rows,
@@ -94,9 +89,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                     countryiso,
                     whowhatwhere_dataset.get_hdx_url(),
                 )
-                create_dataset(
-                    dataset, join("config", "hdx_whowhatwhere_dataset.yml")
-                )
+                create_dataset(dataset, join("config", "hdx_whowhatwhere_dataset.yml"))
 
 
 if __name__ == "__main__":
