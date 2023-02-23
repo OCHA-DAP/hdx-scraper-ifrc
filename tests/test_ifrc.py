@@ -10,6 +10,7 @@ from hdx.api.configuration import Configuration
 from hdx.api.locations import Locations
 from hdx.location.country import Country
 from hdx.utilities.compare import assert_files_same
+from hdx.utilities.dateparse import parse_date
 from hdx.utilities.downloader import Download
 from hdx.utilities.path import temp_dir
 from hdx.utilities.retriever import Retrieve
@@ -47,12 +48,17 @@ class TestIFRC:
                 retriever = Retrieve(
                     downloader, folder, input_folder, folder, False, True
                 )
-                ifrc = IFRC(configuration)
-                appeal_rows, appeal_country_rows = ifrc.get_appealdata(retriever)
+                ifrc = IFRC(configuration, retriever, parse_date("2020-01-01"))
+                (
+                    appeal_rows,
+                    appeal_country_rows,
+                    appeal_qc_status,
+                ) = ifrc.get_appealdata()
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
-                ) = ifrc.get_whowhatwheredata(retriever)
+                    whowhatwhere_qc_status,
+                ) = ifrc.get_whowhatwheredata()
                 assert len(appeal_rows) == 5
                 assert len(appeal_country_rows["MRT"]) == 2
                 assert len(whowhatwhere_rows) == 16
@@ -66,7 +72,9 @@ class TestIFRC:
                     [{"name": x.lower(), "title": x.lower()} for x in countries]
                 )
 
-                appeals_dataset = ifrc.generate_dataset(folder, appeal_rows, "appeal")
+                appeals_dataset = ifrc.generate_dataset_and_showcase(
+                    folder, appeal_rows, "appeal"
+                )
                 assert appeals_dataset == {
                     "data_update_frequency": "7",
                     "dataset_date": "[2022-07-01T00:00:00 TO 2022-12-31T23:59:59]",
@@ -101,7 +109,7 @@ class TestIFRC:
                 filename = "appeals_data_global.csv"
                 assert_files_same(join(fixtures, filename), resource.file_to_upload)
 
-                whowhatwhere_dataset = ifrc.generate_dataset(
+                whowhatwhere_dataset = ifrc.generate_dataset_and_showcase(
                     folder,
                     whowhatwhere_rows,
                     "whowhatwhere",
@@ -140,7 +148,7 @@ class TestIFRC:
                 filename = "3w_data_global.csv"
                 assert_files_same(join(fixtures, filename), resource.file_to_upload)
 
-                dataset = ifrc.generate_dataset(
+                dataset = ifrc.generate_dataset_and_showcase(
                     folder,
                     appeal_country_rows,
                     "appeal",
@@ -181,7 +189,7 @@ class TestIFRC:
                 filename = "appeals_data_mrt.csv"
                 assert_files_same(join(fixtures, filename), resource.file_to_upload)
 
-                dataset = ifrc.generate_dataset(
+                dataset = ifrc.generate_dataset_and_showcase(
                     folder,
                     whowhatwhere_country_rows,
                     "whowhatwhere",

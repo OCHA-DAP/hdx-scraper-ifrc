@@ -1,10 +1,15 @@
 # Collector specific configuration
 base_url: "https://goadmin.ifrc.org/api/v2/"
-get_params: "/?limit=50000&format="
+get_params: "/?limit=200&format=json"
 
-appeal:
+countries:
+  url_path: "country"
+  filename: "countries_{index}.json"
+
+appeals:
   url_path: "appeal"
-  download_path: "appeals.csv"
+  additional_params: "&appeal__real_data_update__gte="
+  filename: "appeals_{index}.json"
   heading: "Appeals"
   tags:
     - "aid funding"
@@ -14,10 +19,11 @@ appeal:
     "dtype.id": "#cause+id"
     "dtype.name": "#cause+name"
     "atype": "#meta+appeal+type"
-    "status": "#status"
+    "status": "#status+code"
+    "status_display": "#status+name"
     "code": "#meta+appeal+id"
     "sector": "#region+name+office"
-    "num_beneficiaries": "#beneficiaries+num"
+    "initial_num_beneficiaries": "#beneficiaries+num"
     "amount_requested": "#value+requested"
     "amount_funded": "#value+funded"
     "start_date": "#date+start"
@@ -27,23 +33,26 @@ appeal:
     "country.society_name": "#org+national_society"
     "region.id": "#region+id"
     "region.region_name": "#region+name"
+  showcase_urls:
+    global: "https://go.ifrc.org/"
 
 whowhatwhere:
   url_path: "project"
-  download_path: "whowhatwhere.json"
+#  additional_params: "&modified_at__gte="
+  filename: "whowhatwhere_{index}.json"
   heading: "3W"
   tags:
     - "who is doing what and where - 3w - 4w - 5w"
   hxltags:
     "country.iso3": "#country+code"
     "country.name": "#country+name"
-    "district.name": "#adm1+code"
+    "district.names": "#adm1+names"
     "country.society_name": "#org+national_society"
     "primary_sector": "#sector+primary"
     "secondary_sectors": "#sector+secondary"
     "programme_type": "#activity+type"
     "operation_type": "#operations+type"
-    "status": "#status"
+    "status_display": "#status+name"
     "start_date": "#date+start"
     "end_date": "#date+end"
     "budget_amount": "#value+budget"
@@ -57,3 +66,6 @@ whowhatwhere:
     "reached_other": "#reached+other"
     "reached_total": "#reached+total"
     "name": "#activity"
+  showcase_urls:
+    global: "https://go.ifrc.org/three-w/"
+    country: "https://go.ifrc.org/countries/{id}#3w"
