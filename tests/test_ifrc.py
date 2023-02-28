@@ -48,7 +48,8 @@ class TestIFRC:
                 retriever = Retrieve(
                     downloader, folder, input_folder, folder, False, True
                 )
-                ifrc = IFRC(configuration, retriever, parse_date("2020-01-01"))
+                ifrc = IFRC(configuration, retriever, parse_date("2023-02-01"))
+                ifrc.get_countries()
                 (
                     appeal_rows,
                     appeal_country_rows,
@@ -59,25 +60,23 @@ class TestIFRC:
                     whowhatwhere_country_rows,
                     whowhatwhere_qc_status,
                 ) = ifrc.get_whowhatwheredata()
-                assert len(appeal_rows) == 5
-                assert len(appeal_country_rows["MRT"]) == 2
-                assert len(whowhatwhere_rows) == 16
-                assert len(whowhatwhere_country_rows["ARM"]) == 11
+                assert len(appeal_rows) == 144
+                assert len(appeal_country_rows["BDI"]) == 1
+                assert whowhatwhere_rows is None
+                assert whowhatwhere_country_rows is None
 
-                countries = set(appeal_country_rows).union(
-                    set(whowhatwhere_country_rows)
-                )
+                countries = set(appeal_country_rows)
                 countries.add("world")
                 Locations.set_validlocations(
                     [{"name": x.lower(), "title": x.lower()} for x in countries]
                 )
 
-                appeals_dataset = ifrc.generate_dataset_and_showcase(
-                    folder, appeal_rows, "appeal"
+                appeals_dataset, showcase = ifrc.generate_dataset_and_showcase(
+                    folder, appeal_rows, "appeals"
                 )
                 assert appeals_dataset == {
                     "data_update_frequency": "7",
-                    "dataset_date": "[2022-07-01T00:00:00 TO 2022-12-31T23:59:59]",
+                    "dataset_date": "[1993-03-08T00:00:00 TO 2028-02-29T23:59:59]",
                     "groups": [{"name": "world"}],
                     "maintainer": "196196be-6037-4488-8b71-d786adf4c081",
                     "name": "global-ifrc-appeals-data",
@@ -108,60 +107,39 @@ class TestIFRC:
                 }
                 filename = "appeals_data_global.csv"
                 assert_files_same(join(fixtures, filename), resource.file_to_upload)
-
-                whowhatwhere_dataset = ifrc.generate_dataset_and_showcase(
-                    folder,
-                    whowhatwhere_rows,
-                    "whowhatwhere",
-                )
-                assert whowhatwhere_dataset == {
-                    "data_update_frequency": "7",
-                    "dataset_date": "[2018-06-01T00:00:00 TO 2022-07-31T23:59:59]",
-                    "groups": [{"name": "world"}],
-                    "maintainer": "196196be-6037-4488-8b71-d786adf4c081",
-                    "name": "global-ifrc-3w-data",
-                    "notes": "This data can also be found as individual country datasets on HDX.",
-                    "owner_org": "3ada79f1-a239-4e09-bb2e-55743b7e6b69",
-                    "subnational": "0",
+                assert showcase == {
+                    "image_url": "https://avatars.githubusercontent.com/u/22204810?s=200&v=4",
+                    "name": "global-ifrc-appeals-data-showcase",
+                    "notes": "IFRC Go Dashboard of Appeals Data",
                     "tags": [
                         {
                             "name": "hxl",
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                         {
-                            "name": "who is doing what and where - 3w - 4w - 5w",
+                            "name": "aid funding",
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                     ],
-                    "title": "Global - IFRC 3W",
+                    "title": "Global - IFRC Appeals showcase",
+                    "url": "https://go.ifrc.org/",
                 }
-                resources = whowhatwhere_dataset.get_resources()
-                assert len(resources) == 1
-                resource = resources[0]
-                assert resource == {
-                    "description": "IFRC 3W data with HXL tags",
-                    "format": "csv",
-                    "name": "Global IFRC 3W Data",
-                    "resource_type": "file.upload",
-                    "url_type": "upload",
-                }
-                filename = "3w_data_global.csv"
-                assert_files_same(join(fixtures, filename), resource.file_to_upload)
 
-                dataset = ifrc.generate_dataset_and_showcase(
+                dataset, showcase = ifrc.generate_dataset_and_showcase(
                     folder,
                     appeal_country_rows,
-                    "appeal",
-                    "MRT",
-                    appeals_dataset.get_hdx_url(),
+                    "appeals",
+                    "BDI",
+                    appeals_dataset,
                 )
                 assert dataset == {
                     "data_update_frequency": "7",
-                    "dataset_date": "[2022-07-01T00:00:00 TO 2022-12-31T23:59:59]",
-                    "groups": [{"name": "mrt"}],
+                    "dataset_date": "[2022-11-16T00:00:00 TO 2023-03-31T23:59:59]",
+                    "groups": [{"name": "bdi"}],
                     "maintainer": "196196be-6037-4488-8b71-d786adf4c081",
-                    "name": "ifrc-appeals-data-for-mauritania",
-                    "notes": "There is also a [global dataset](https://stage.data-humdata-org.ahconu.org/dataset/global-ifrc-appeals-data).",
+                    "name": "ifrc-appeals-data-for-burundi",
+                    "notes": "There is also a [global "
+                    "dataset](https://stage.data-humdata-org.ahconu.org/dataset/global-ifrc-appeals-data).",
                     "owner_org": "3ada79f1-a239-4e09-bb2e-55743b7e6b69",
                     "subnational": "0",
                     "tags": [
@@ -174,7 +152,7 @@ class TestIFRC:
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                     ],
-                    "title": "Mauritania - IFRC Appeals",
+                    "title": "Burundi - IFRC Appeals",
                 }
                 resources = dataset.get_resources()
                 assert len(resources) == 1
@@ -182,50 +160,10 @@ class TestIFRC:
                 assert resource == {
                     "description": "IFRC Appeals data with HXL tags",
                     "format": "csv",
-                    "name": "IFRC Appeals Data for Mauritania",
+                    "name": "IFRC Appeals Data for Burundi",
                     "resource_type": "file.upload",
                     "url_type": "upload",
                 }
-                filename = "appeals_data_mrt.csv"
+                filename = "appeals_data_bdi.csv"
                 assert_files_same(join(fixtures, filename), resource.file_to_upload)
-
-                dataset = ifrc.generate_dataset_and_showcase(
-                    folder,
-                    whowhatwhere_country_rows,
-                    "whowhatwhere",
-                    "ARM",
-                    whowhatwhere_dataset.get_hdx_url(),
-                )
-                assert dataset == {
-                    "data_update_frequency": "7",
-                    "dataset_date": "[2021-12-27T00:00:00 TO 2022-04-30T23:59:59]",
-                    "groups": [{"name": "arm"}],
-                    "maintainer": "196196be-6037-4488-8b71-d786adf4c081",
-                    "name": "ifrc-3w-data-for-armenia",
-                    "notes": "There is also a [global dataset](https://stage.data-humdata-org.ahconu.org/dataset/global-ifrc-3w-data).",
-                    "owner_org": "3ada79f1-a239-4e09-bb2e-55743b7e6b69",
-                    "subnational": "0",
-                    "tags": [
-                        {
-                            "name": "hxl",
-                            "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
-                        },
-                        {
-                            "name": "who is doing what and where - 3w - 4w - 5w",
-                            "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
-                        },
-                    ],
-                    "title": "Armenia - IFRC 3W",
-                }
-                resources = dataset.get_resources()
-                assert len(resources) == 1
-                resource = resources[0]
-                assert resource == {
-                    "description": "IFRC 3W data with HXL tags",
-                    "format": "csv",
-                    "name": "IFRC 3W Data for Armenia",
-                    "resource_type": "file.upload",
-                    "url_type": "upload",
-                }
-                filename = "3w_data_arm.csv"
-                assert_files_same(join(fixtures, filename), resource.file_to_upload)
+                assert showcase is None
