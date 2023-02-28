@@ -46,14 +46,18 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                     appeal_country_rows,
                     appeal_qc_status,
                 ) = ifrc.get_appealdata()
+                countries_list = []
+                if appeal_country_rows:
+                    countries_list.append(set(appeal_country_rows))
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
                     whowhatwhere_qc_status,
                 ) = ifrc.get_whowhatwheredata()
-                countries = set(appeal_country_rows).union(
-                    set(whowhatwhere_country_rows)
-                )
+                if whowhatwhere_country_rows:
+                    countries_list.append(set(whowhatwhere_country_rows))
+
+                countries = set().union(*countries_list)
                 countries = [{"iso3": x} for x in sorted(countries)]
                 logger.info(f"Number of countries: {len(countries)}")
 
@@ -71,7 +75,12 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                     if qcstatus is None:
                         findreplace = None
                     else:
-                        findreplace = {"{{#status+name}}": qcstatus}
+                        countryiso = dataset.get_location_iso3s()[0]
+                        qcstatus_country = qcstatus.get(countryiso)
+                        if qcstatus_country is None:
+                            findreplace = None
+                        else:
+                            findreplace = {"{{#status+name}}": qcstatus_country}
                     dataset.generate_resource_view(
                         path=resource_view_path, findreplace=findreplace
                     )
@@ -113,28 +122,28 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         appeal_country_rows,
                         "appeals",
                         countryiso,
-                        appeals_dataset.get_hdx_url(),
+                        appeals_dataset,
                     )
                     create_dataset(
                         dataset,
                         showcase,
                         join("config", "hdx_appeals_dataset.yml"),
                         join("config", "hdx_country_appeals_resource_view.yml"),
-                        qcstatus=appeal_qc_status[countryiso],
+                        qcstatus=appeal_qc_status,
                     )
                     dataset, showcase = ifrc.generate_dataset_and_showcase(
                         folder,
                         whowhatwhere_country_rows,
                         "whowhatwhere",
                         countryiso,
-                        whowhatwhere_dataset.get_hdx_url(),
+                        whowhatwhere_dataset,
                     )
                     create_dataset(
                         dataset,
                         showcase,
                         join("config", "hdx_whowhatwhere_dataset.yml"),
                         join("config", "hdx_country_whowhatwhere_resource_view.yml"),
-                        qcstatus=whowhatwhere_qc_status[countryiso],
+                        qcstatus=whowhatwhere_qc_status,
                     )
 
 

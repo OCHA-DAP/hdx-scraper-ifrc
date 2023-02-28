@@ -67,6 +67,9 @@ class IFRC:
 
     def get_appealdata(self):
         dataset_info = self.configuration["appeals"]
+        publish = dataset_info["publish"]
+        if not publish:
+            return None, None, None
         appeal_path = dataset_info["url_path"]
         additional_params = dataset_info["additional_params"]
         url = f"{self.base_url}{appeal_path}{self.get_params}{additional_params}{self.last_run_date}T00:00:00"
@@ -93,8 +96,13 @@ class IFRC:
 
     def get_whowhatwheredata(self):
         dataset_info = self.configuration["whowhatwhere"]
+        publish = dataset_info["publish"]
+        if not publish:
+            return None, None, None
+
         whowhatwhere_path = dataset_info["url_path"]
-        url = f"{self.base_url}{whowhatwhere_path}{self.get_params}"
+        additional_params = dataset_info["additional_params"]
+        url = f"{self.base_url}{whowhatwhere_path}{self.get_params}{additional_params}{self.last_run_date}T00:00:00"
         filename = dataset_info["filename"]
 
         def add_rows(rows, rows_by_country, qc_status_country, row):
@@ -160,7 +168,7 @@ class IFRC:
         rows,
         dataset_type,
         countryiso=None,
-        global_dataset_url=None,
+        global_dataset=None,
     ):
         """ """
         if rows is None:
@@ -177,6 +185,7 @@ class IFRC:
             title = f"{countryname} - IFRC {heading}"
             name = f"IFRC {heading} Data for {countryname}"
             filename = f"{heading.lower()}_data_{countryiso.lower()}.csv"
+            global_dataset_url = global_dataset.get_hdx_url()
             notes = f"There is also a [global dataset]({global_dataset_url})."
         else:
             title = f"Global - IFRC {heading}"

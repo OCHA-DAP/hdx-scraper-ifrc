@@ -7,6 +7,7 @@ countries:
   filename: "countries_{index}.json"
 
 appeals:
+  publish: True
   url_path: "appeal"
   additional_params: "&appeal__real_data_update__gte="
   filename: "appeals_{index}.json"
@@ -37,8 +38,9 @@ appeals:
     global: "https://go.ifrc.org/"
 
 whowhatwhere:
+  publish: False
   url_path: "project"
-#  additional_params: "&modified_at__gte="
+  additional_params: "&modified_at__gte="
   filename: "whowhatwhere_{index}.json"
   heading: "3W"
   tags:
