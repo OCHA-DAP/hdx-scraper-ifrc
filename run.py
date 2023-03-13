@@ -8,6 +8,7 @@ from os.path import expanduser, join
 
 from hdx.api.configuration import Configuration
 from hdx.facades.infer_arguments import facade
+from hdx.utilities.dateparse import now_utc
 from hdx.utilities.downloader import Download
 from hdx.utilities.path import progress_storing_folder, wheretostart_tempdir_batch
 from hdx.utilities.retriever import Retrieve
@@ -39,12 +40,13 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 retriever = Retrieve(
                     downloader, folder, "saved_data", folder, save, use_saved
                 )
-                ifrc = IFRC(configuration, retriever, state.get())
+                now = now_utc()
+                ifrc = IFRC(configuration, retriever, now, state.get())
                 ifrc.get_countries()
                 (
                     appeal_rows,
                     appeal_country_rows,
-                    appeal_qc_status,
+                    appeal_quickcharts,
                 ) = ifrc.get_appealdata()
                 countries_list = []
                 if appeal_country_rows:
@@ -52,7 +54,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
-                    whowhatwhere_qc_status,
+                    whowhatwhere_quickcharts,
                 ) = ifrc.get_whowhatwheredata()
                 if whowhatwhere_country_rows:
                     countries_list.append(set(whowhatwhere_country_rows))
@@ -62,7 +64,12 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 logger.info(f"Number of countries: {len(countries)}")
 
                 def create_dataset(
-                    dataset, showcase, dataset_path, resource_view_path, qcstatus=None
+                    dataset,
+                    showcase,
+                    qc_resource,
+                    dataset_path,
+                    resource_view_path,
+                    quickcharts,
                 ):
                     if not dataset:
                         return
@@ -72,6 +79,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                     # ensure markdown has line breaks
                     dataset["notes"] = notes.replace("\n", "  \n")
 
+                    qcstatus = quickcharts.get("status_country")
                     if qcstatus is None:
                         findreplace = None
                     else:
@@ -82,7 +90,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         else:
                             findreplace = {"{{#status+name}}": qcstatus_country}
                     dataset.generate_resource_view(
-                        path=resource_view_path, findreplace=findreplace
+                        qc_resource, path=resource_view_path, findreplace=findreplace
                     )
                     dataset.create_in_hdx(
                         remove_additional_resources=True,
@@ -95,55 +103,72 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         showcase.create_in_hdx()
                         showcase.add_dataset(dataset)
 
-                appeals_dataset, showcase = ifrc.generate_dataset_and_showcase(
-                    folder, appeal_rows, "appeals"
+                (
+                    appeals_dataset,
+                    showcase,
+                    qc_resource,
+                ) = ifrc.generate_dataset_and_showcase(
+                    folder, appeal_rows, "appeals", appeal_quickcharts
                 )
                 create_dataset(
                     appeals_dataset,
                     showcase,
+                    qc_resource,
                     join("config", "hdx_appeals_dataset.yml"),
                     join("config", "hdx_global_appeals_resource_view.yml"),
+                    appeal_quickcharts,
                 )
-                whowhatwhere_dataset, showcase = ifrc.generate_dataset_and_showcase(
+                (
+                    whowhatwhere_dataset,
+                    showcase,
+                    qc_resource,
+                ) = ifrc.generate_dataset_and_showcase(
                     folder,
                     whowhatwhere_rows,
                     "whowhatwhere",
+                    whowhatwhere_quickcharts,
                 )
                 create_dataset(
                     whowhatwhere_dataset,
                     showcase,
+                    qc_resource,
                     join("config", "hdx_whowhatwhere_dataset.yml"),
                     join("config", "hdx_global_whowhatwhere_resource_view.yml"),
+                    whowhatwhere_quickcharts,
                 )
                 for _, country in progress_storing_folder(info, countries, "iso3"):
                     countryiso = country["iso3"]
-                    dataset, showcase = ifrc.generate_dataset_and_showcase(
+                    dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(
                         folder,
                         appeal_country_rows,
                         "appeals",
+                        appeal_quickcharts,
                         countryiso,
                         appeals_dataset,
                     )
                     create_dataset(
                         dataset,
                         showcase,
+                        qc_resource,
                         join("config", "hdx_appeals_dataset.yml"),
                         join("config", "hdx_country_appeals_resource_view.yml"),
-                        qcstatus=appeal_qc_status,
+                        appeal_quickcharts,
                     )
-                    dataset, showcase = ifrc.generate_dataset_and_showcase(
+                    dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(
                         folder,
                         whowhatwhere_country_rows,
                         "whowhatwhere",
+                        whowhatwhere_quickcharts,
                         countryiso,
                         whowhatwhere_dataset,
                     )
                     create_dataset(
                         dataset,
                         showcase,
+                        qc_resource,
                         join("config", "hdx_whowhatwhere_dataset.yml"),
                         join("config", "hdx_country_whowhatwhere_resource_view.yml"),
-                        qcstatus=whowhatwhere_qc_status,
+                        quickcharts=whowhatwhere_quickcharts,
                     )
 
 
