@@ -8,6 +8,7 @@ from os.path import expanduser, join
 
 from hdx.api.configuration import Configuration
 from hdx.facades.infer_arguments import facade
+from hdx.utilities.dateparse import iso_string_from_datetime, now_utc
 from hdx.utilities.downloader import Download
 from hdx.utilities.path import progress_storing_folder, wheretostart_tempdir_batch
 from hdx.utilities.retriever import Retrieve
@@ -32,7 +33,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
     """
 
     configuration = Configuration.read()
-    with State("last_run_date.txt") as state:
+    with State("last_run_date.txt", write_fn=iso_string_from_datetime) as state:
         with wheretostart_tempdir_batch(lookup) as info:
             folder = info["folder"]
             with Download() as downloader:
@@ -145,6 +146,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         join("config", "hdx_country_whowhatwhere_resource_view.yml"),
                         qcstatus=whowhatwhere_qc_status,
                     )
+        state.set(now_utc())
 
 
 if __name__ == "__main__":
