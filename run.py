@@ -8,7 +8,7 @@ from os.path import expanduser, join
 
 from hdx.api.configuration import Configuration
 from hdx.facades.infer_arguments import facade
-from hdx.utilities.dateparse import iso_string_from_datetime, now_utc
+from hdx.utilities.dateparse import iso_string_from_datetime, now_utc, parse_date
 from hdx.utilities.downloader import Download
 from hdx.utilities.path import progress_storing_folder, wheretostart_tempdir_batch
 from hdx.utilities.retriever import Retrieve
@@ -33,7 +33,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
     """
 
     configuration = Configuration.read()
-    with State("last_run_date.txt", write_fn=iso_string_from_datetime) as state:
+    with State("last_run_date.txt", parse_date, iso_string_from_datetime) as state:
         with wheretostart_tempdir_batch(lookup) as info:
             folder = info["folder"]
             with Download() as downloader:
@@ -46,106 +46,118 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                     appeal_rows,
                     appeal_country_rows,
                     appeal_qc_status,
+                    appeal_countries_to_update,
                 ) = ifrc.get_appealdata()
                 countries_list = []
-                if appeal_country_rows:
-                    countries_list.append(set(appeal_country_rows))
+                if appeal_countries_to_update:
+                    countries_list.append(set(appeal_countries_to_update))
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
                     whowhatwhere_qc_status,
+                    whowhatwhere_countries_to_update,
                 ) = ifrc.get_whowhatwheredata()
-                if whowhatwhere_country_rows:
-                    countries_list.append(set(whowhatwhere_country_rows))
+                if whowhatwhere_countries_to_update:
+                    countries_list.append(set(whowhatwhere_countries_to_update))
 
-                countries = set().union(*countries_list)
-                countries = [{"iso3": x} for x in sorted(countries)]
-                logger.info(f"Number of countries: {len(countries)}")
+                if countries_list:
+                    countries = set().union(*countries_list)
+                    countries = [{"iso3": x} for x in sorted(countries)]
+                    logger.info(f"Number of countries: {len(countries)}")
 
-                def create_dataset(
-                    dataset, showcase, dataset_path, resource_view_path, qcstatus=None
-                ):
-                    if not dataset:
-                        return
-                    notes = f"\n\n{dataset['notes']}"
-                    dataset.update_from_yaml(dataset_path)
-                    notes = f"{dataset['notes']}{notes}"
-                    # ensure markdown has line breaks
-                    dataset["notes"] = notes.replace("\n", "  \n")
+                    def create_dataset(
+                        dataset,
+                        showcase,
+                        dataset_path,
+                        resource_view_path,
+                        qcstatus=None,
+                    ):
+                        if not dataset:
+                            return
+                        notes = f"\n\n{dataset['notes']}"
+                        dataset.update_from_yaml(dataset_path)
+                        notes = f"{dataset['notes']}{notes}"
+                        # ensure markdown has line breaks
+                        dataset["notes"] = notes.replace("\n", "  \n")
 
-                    if qcstatus is None:
-                        findreplace = None
-                    else:
-                        countryiso = dataset.get_location_iso3s()[0]
-                        qcstatus_country = qcstatus.get(countryiso)
-                        if qcstatus_country is None:
+                        if qcstatus is None:
                             findreplace = None
                         else:
-                            findreplace = {"{{#status+name}}": qcstatus_country}
-                    dataset.generate_resource_view(
-                        path=resource_view_path, findreplace=findreplace
-                    )
-                    dataset.create_in_hdx(
-                        remove_additional_resources=True,
-                        hxl_update=False,
-                        updated_by_script=updated_by_script,
-                        batch=info["batch"],
-                    )
+                            countryiso = dataset.get_location_iso3s()[0]
+                            qcstatus_country = qcstatus.get(countryiso)
+                            if qcstatus_country is None:
+                                findreplace = None
+                            else:
+                                findreplace = {"{{#status+name}}": qcstatus_country}
+                        dataset.generate_resource_view(
+                            path=resource_view_path, findreplace=findreplace
+                        )
+                        dataset.create_in_hdx(
+                            remove_additional_resources=True,
+                            hxl_update=False,
+                            updated_by_script=updated_by_script,
+                            batch=info["batch"],
+                        )
 
-                    if showcase:
-                        showcase.create_in_hdx()
-                        showcase.add_dataset(dataset)
+                        if showcase:
+                            showcase.create_in_hdx()
+                            showcase.add_dataset(dataset)
 
-                appeals_dataset, showcase = ifrc.generate_dataset_and_showcase(
-                    folder, appeal_rows, "appeals"
-                )
-                create_dataset(
-                    appeals_dataset,
-                    showcase,
-                    join("config", "hdx_appeals_dataset.yml"),
-                    join("config", "hdx_global_appeals_resource_view.yml"),
-                )
-                whowhatwhere_dataset, showcase = ifrc.generate_dataset_and_showcase(
-                    folder,
-                    whowhatwhere_rows,
-                    "whowhatwhere",
-                )
-                create_dataset(
-                    whowhatwhere_dataset,
-                    showcase,
-                    join("config", "hdx_whowhatwhere_dataset.yml"),
-                    join("config", "hdx_global_whowhatwhere_resource_view.yml"),
-                )
-                for _, country in progress_storing_folder(info, countries, "iso3"):
-                    countryiso = country["iso3"]
-                    dataset, showcase = ifrc.generate_dataset_and_showcase(
-                        folder,
-                        appeal_country_rows,
-                        "appeals",
-                        countryiso,
-                        appeals_dataset,
+                    appeals_dataset, showcase = ifrc.generate_dataset_and_showcase(
+                        folder, appeal_rows, "appeals"
                     )
                     create_dataset(
-                        dataset,
+                        appeals_dataset,
                         showcase,
                         join("config", "hdx_appeals_dataset.yml"),
-                        join("config", "hdx_country_appeals_resource_view.yml"),
-                        qcstatus=appeal_qc_status,
+                        join("config", "hdx_global_appeals_resource_view.yml"),
                     )
-                    dataset, showcase = ifrc.generate_dataset_and_showcase(
+                    whowhatwhere_dataset, showcase = ifrc.generate_dataset_and_showcase(
                         folder,
-                        whowhatwhere_country_rows,
+                        whowhatwhere_rows,
                         "whowhatwhere",
-                        countryiso,
-                        whowhatwhere_dataset,
                     )
                     create_dataset(
-                        dataset,
+                        whowhatwhere_dataset,
                         showcase,
                         join("config", "hdx_whowhatwhere_dataset.yml"),
-                        join("config", "hdx_country_whowhatwhere_resource_view.yml"),
-                        qcstatus=whowhatwhere_qc_status,
+                        join("config", "hdx_global_whowhatwhere_resource_view.yml"),
                     )
+                    for _, country in progress_storing_folder(info, countries, "iso3"):
+                        countryiso = country["iso3"]
+                        dataset, showcase = ifrc.generate_dataset_and_showcase(
+                            folder,
+                            appeal_country_rows,
+                            "appeals",
+                            countryiso,
+                            appeals_dataset,
+                        )
+                        create_dataset(
+                            dataset,
+                            showcase,
+                            join("config", "hdx_appeals_dataset.yml"),
+                            join("config", "hdx_country_appeals_resource_view.yml"),
+                            qcstatus=appeal_qc_status,
+                        )
+                        dataset, showcase = ifrc.generate_dataset_and_showcase(
+                            folder,
+                            whowhatwhere_country_rows,
+                            "whowhatwhere",
+                            countryiso,
+                            whowhatwhere_dataset,
+                        )
+                        create_dataset(
+                            dataset,
+                            showcase,
+                            join("config", "hdx_whowhatwhere_dataset.yml"),
+                            join(
+                                "config", "hdx_country_whowhatwhere_resource_view.yml"
+                            ),
+                            qcstatus=whowhatwhere_qc_status,
+                        )
+                else:
+                    logger.info("Nothing to update!")
+
         state.set(now_utc())
 
 

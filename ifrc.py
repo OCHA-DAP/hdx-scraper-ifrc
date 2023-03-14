@@ -38,19 +38,22 @@ class IFRC:
         self.last_run_date = last_run_date
         self.iso3_to_id = {}
 
-    def download_data(self, url, basename, add_rows_fn):
+    def download_data(self, url, basename, add_row_fn):
         rows = []
         rows_by_country = {}
         qc_status_country = {}
+        countries_to_update = {}
         i = 0
         while url:
             filename = basename.format(index=i)
             json = self.retriever.download_json(url, filename=filename)
             for row in json["results"]:
-                add_rows_fn(rows, rows_by_country, qc_status_country, row)
+                add_row_fn(
+                    rows, rows_by_country, qc_status_country, row, countries_to_update
+                )
             url = json["next"]
             i += 1
-        return rows, rows_by_country, qc_status_country
+        return rows, rows_by_country, qc_status_country, countries_to_update
 
     def get_countries(self):
         dataset_info = self.configuration["countries"]
@@ -58,32 +61,40 @@ class IFRC:
         url = f"{self.base_url}{country_path}{self.get_params}"
         filename = dataset_info["filename"]
 
-        def add_rows(rows, rows_by_country, qc_status_country, row):
+        def add_rows(
+            rows, rows_by_country, qc_status_country, row, countries_to_update
+        ):
             countryiso = row["iso3"]
             ifrc_id = row["id"]
             rows_by_country[countryiso] = ifrc_id
 
-        _, self.iso3_to_id, _ = self.download_data(url, filename, add_rows_fn=add_rows)
+        _, self.iso3_to_id, _, _ = self.download_data(
+            url, filename, add_row_fn=add_rows
+        )
 
     def get_appealdata(self):
         dataset_info = self.configuration["appeals"]
         publish = dataset_info["publish"]
         if not publish:
-            return None, None, None
+            return None, None, None, None
         appeal_path = dataset_info["url_path"]
         additional_params = dataset_info["additional_params"]
-        url = f"{self.base_url}{appeal_path}{self.get_params}{additional_params}{self.last_run_date}T00:00:00"
+        url = f"{self.base_url}{appeal_path}{self.get_params}{additional_params}2020-01-01T00:00:00"
         filename = dataset_info["filename"]
         qc_statuscode_country = {}
 
-        def add_rows(rows, rows_by_country, qc_status_country, row):
+        def add_row(rows, rows_by_country, qc_status_country, row, countries_to_update):
             status = row["status"]
             if status == 3:  # Ignore Archived status
                 return
+
             row["initial_num_beneficiaries"] = row["num_beneficiaries"]
             del row["num_beneficiaries"]
             row = flatten(row)
             countryiso = row["country.iso3"]
+            updated_date = parse_date(row["real_data_update"])
+            if updated_date > self.last_run_date:
+                countries_to_update[countryiso] = True
             row["country.name"] = Country.get_country_name_from_iso3(countryiso)
             rows.append(row)
             dict_of_lists_add(rows_by_country, countryiso, row)
@@ -92,20 +103,20 @@ class IFRC:
                 qc_statuscode_country[countryiso] = status
                 qc_status_country[countryiso] = row["status_display"]
 
-        return self.download_data(url, filename, add_rows_fn=add_rows)
+        return self.download_data(url, filename, add_row_fn=add_row)
 
     def get_whowhatwheredata(self):
         dataset_info = self.configuration["whowhatwhere"]
         publish = dataset_info["publish"]
         if not publish:
-            return None, None, None
+            return None, None, None, None
 
         whowhatwhere_path = dataset_info["url_path"]
         additional_params = dataset_info["additional_params"]
         url = f"{self.base_url}{whowhatwhere_path}{self.get_params}{additional_params}{self.last_run_date}T00:00:00"
         filename = dataset_info["filename"]
 
-        def add_rows(rows, rows_by_country, qc_status_country, row):
+        def add_row(rows, rows_by_country, qc_status_country, row, countries_to_update):
             countryiso = row["project_country_detail"]["iso3"]
             countryname = Country.get_country_name_from_iso3(countryiso)
             district_names = ", ".join(
@@ -160,7 +171,7 @@ class IFRC:
             if qc_status is None or status_display == "Ongoing":
                 qc_status_country[countryiso] = status_display
 
-        return self.download_data(url, filename, add_rows_fn=add_rows)
+        return self.download_data(url, filename, add_row_fn=add_row)
 
     def generate_dataset_and_showcase(
         self,

@@ -48,20 +48,34 @@ class TestIFRC:
                 retriever = Retrieve(
                     downloader, folder, input_folder, folder, False, True
                 )
+                ifrc = IFRC(configuration, retriever, parse_date("2023-02-20"))
+                ifrc.get_countries()
+                (
+                    appeal_rows,
+                    appeal_country_rows,
+                    appeal_qc_status,
+                    appeal_countries_to_update,
+                ) = ifrc.get_appealdata()
+                assert len(appeal_rows) == 144
+                assert len(appeal_country_rows["BDI"]) == 1
+                assert len(appeal_countries_to_update) == 12
                 ifrc = IFRC(configuration, retriever, parse_date("2023-02-01"))
                 ifrc.get_countries()
                 (
                     appeal_rows,
                     appeal_country_rows,
                     appeal_qc_status,
+                    appeal_countries_to_update,
                 ) = ifrc.get_appealdata()
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
                     whowhatwhere_qc_status,
+                    whowhatwhere_countries_to_update,
                 ) = ifrc.get_whowhatwheredata()
                 assert len(appeal_rows) == 144
                 assert len(appeal_country_rows["BDI"]) == 1
+                assert len(appeal_countries_to_update) == 44
                 assert whowhatwhere_rows is None
                 assert whowhatwhere_country_rows is None
 
