@@ -13,7 +13,7 @@ appeals:
   filename: "appeals_{index}.json"
   heading: "Appeals"
   tags:
-    - "aid funding"
+    - "funding"
   hxltags:
     "aid": "#meta+id"
     "name": "#crisis+name"
@@ -44,7 +44,7 @@ whowhatwhere:
   filename: "whowhatwhere_{index}.json"
   heading: "3W"
   tags:
-    - "who is doing what and where - 3w - 4w - 5w"
+    - "who is doing what and where-3w-4w-5w"
   hxltags:
     "country.iso3": "#country+code"
     "country.name": "#country+name"
