@@ -89,7 +89,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                                 findreplace = None
                             else:
                                 findreplace = {"{{#status+name}}": qcstatus_country}
-                        dataset.generate_resource_view(
+                        dataset.generate_quickcharts(
                             path=resource_view_path, findreplace=findreplace
                         )
                         dataset.create_in_hdx(
