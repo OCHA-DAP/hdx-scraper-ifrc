@@ -76,6 +76,7 @@ class TestIFRC:
                 ) = ifrc.get_whowhatwheredata()
                 assert len(appeal_rows) == 144
                 assert len(appeal_country_rows["BDI"]) == 1
+                assert len(appeal_countries_to_update) == 44
                 assert whowhatwhere_rows is None
                 assert whowhatwhere_country_rows is None
 
@@ -107,7 +108,7 @@ class TestIFRC:
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                         {
-                            "name": "aid funding",
+                            "name": "funding",
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                     ],
@@ -145,7 +146,7 @@ class TestIFRC:
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                         {
-                            "name": "aid funding",
+                            "name": "funding",
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                     ],
@@ -177,7 +178,7 @@ class TestIFRC:
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                         {
-                            "name": "aid funding",
+                            "name": "funding",
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                     ],

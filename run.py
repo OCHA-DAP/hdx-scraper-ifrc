@@ -8,7 +8,7 @@ from os.path import expanduser, join
 
 from hdx.api.configuration import Configuration
 from hdx.facades.infer_arguments import facade
-from hdx.utilities.dateparse import now_utc
+from hdx.utilities.dateparse import iso_string_from_datetime, now_utc, parse_date
 from hdx.utilities.downloader import Download
 from hdx.utilities.path import progress_storing_folder, wheretostart_tempdir_batch
 from hdx.utilities.retriever import Retrieve
@@ -33,7 +33,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
     """
 
     configuration = Configuration.read()
-    with State("last_run_date.txt") as state:
+    with State("last_run_date.txt", parse_date, iso_string_from_datetime) as state:
         with wheretostart_tempdir_batch(lookup) as info:
             folder = info["folder"]
             with Download() as downloader:
@@ -46,22 +46,25 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 (
                     appeal_rows,
                     appeal_country_rows,
-                    appeal_quickcharts,
+                    appeal_qc_status,
+                    appeal_countries_to_update,
                 ) = ifrc.get_appealdata()
                 countries_list = []
-                if appeal_country_rows:
-                    countries_list.append(set(appeal_country_rows))
+                if appeal_countries_to_update:
+                    countries_list.append(set(appeal_countries_to_update))
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
-                    whowhatwhere_quickcharts,
+                    whowhatwhere_qc_status,
+                    whowhatwhere_countries_to_update,
                 ) = ifrc.get_whowhatwheredata()
-                if whowhatwhere_country_rows:
-                    countries_list.append(set(whowhatwhere_country_rows))
+                if whowhatwhere_countries_to_update:
+                    countries_list.append(set(whowhatwhere_countries_to_update))
 
-                countries = set().union(*countries_list)
-                countries = [{"iso3": x} for x in sorted(countries)]
-                logger.info(f"Number of countries: {len(countries)}")
+                if countries_list:
+                    countries = set().union(*countries_list)
+                    countries = [{"iso3": x} for x in sorted(countries)]
+                    logger.info(f"Number of countries: {len(countries)}")
 
                 def create_dataset(
                     dataset,
@@ -99,9 +102,9 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         batch=info["batch"],
                     )
 
-                    if showcase:
-                        showcase.create_in_hdx()
-                        showcase.add_dataset(dataset)
+                        if showcase:
+                            showcase.create_in_hdx()
+                            showcase.add_dataset(dataset)
 
                 (
                     appeals_dataset,
@@ -147,7 +150,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         appeals_dataset,
                     )
                     create_dataset(
-                        dataset,
+                        appeals_dataset,
                         showcase,
                         qc_resource,
                         join("config", "hdx_appeals_dataset.yml"),
@@ -156,20 +159,56 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                     )
                     dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(
                         folder,
-                        whowhatwhere_country_rows,
+                        whowhatwhere_rows,
                         "whowhatwhere",
                         whowhatwhere_quickcharts,
                         countryiso,
                         whowhatwhere_dataset,
                     )
                     create_dataset(
-                        dataset,
+                        whowhatwhere_dataset,
                         showcase,
                         qc_resource,
                         join("config", "hdx_whowhatwhere_dataset.yml"),
                         join("config", "hdx_country_whowhatwhere_resource_view.yml"),
                         quickcharts=whowhatwhere_quickcharts,
                     )
+                    for _, country in progress_storing_folder(info, countries, "iso3"):
+                        countryiso = country["iso3"]
+                        dataset, showcase = ifrc.generate_dataset_and_showcase(
+                            folder,
+                            appeal_country_rows,
+                            "appeals",
+                            countryiso,
+                            appeals_dataset,
+                        )
+                        create_dataset(
+                            dataset,
+                            showcase,
+                            join("config", "hdx_appeals_dataset.yml"),
+                            join("config", "hdx_country_appeals_resource_view.yml"),
+                            qcstatus=appeal_qc_status,
+                        )
+                        dataset, showcase = ifrc.generate_dataset_and_showcase(
+                            folder,
+                            whowhatwhere_country_rows,
+                            "whowhatwhere",
+                            countryiso,
+                            whowhatwhere_dataset,
+                        )
+                        create_dataset(
+                            dataset,
+                            showcase,
+                            join("config", "hdx_whowhatwhere_dataset.yml"),
+                            join(
+                                "config", "hdx_country_whowhatwhere_resource_view.yml"
+                            ),
+                            qcstatus=whowhatwhere_qc_status,
+                        )
+                else:
+                    logger.info("Nothing to update!")
+
+        state.set(now_utc())
 
 
 if __name__ == "__main__":
