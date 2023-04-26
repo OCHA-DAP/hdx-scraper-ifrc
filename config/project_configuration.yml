@@ -25,8 +25,8 @@ appeals:
     "code": "#meta+appeal+id"
     "sector": "#region+name+office"
     "initial_num_beneficiaries": "#beneficiaries+num"
-    "amount_requested": "#value+requested"
-    "amount_funded": "#value+funded"
+    "amount_requested": "#value+funding+required+chf"
+    "amount_funded": "#value+funding+total+chf"
     "start_date": "#date+start"
     "end_date": "#date+end"
     "country.iso3": "#country+code"
@@ -36,6 +36,14 @@ appeals:
     "region.region_name": "#region+name"
   showcase_urls:
     global: "https://go.ifrc.org/"
+  quickcharts_hxltags:
+    "Year": "#date+year"
+    "Year Month": "#date+yearmonth"
+    "Last Year": "#meta+lastyear"
+    "Appeal Type": "#meta+appeal+type"
+    "Number of Appeals": "#indicator+appeal+num"
+    "Funded": "#value+funding+total+chf"
+    "Beneficiaries": "#beneficiaries+num"
 
 whowhatwhere:
   publish: False

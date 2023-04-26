@@ -7,7 +7,9 @@ Reads IFRC data and creates datasets.
 
 """
 import logging
+from copy import deepcopy
 
+from dateutil.relativedelta import relativedelta
 from hdx.data.dataset import Dataset
 from hdx.data.showcase import Showcase
 from hdx.location.country import Country
@@ -30,30 +32,31 @@ def flatten(data):
 
 
 class IFRC:
-    def __init__(self, configuration, retriever, last_run_date):
+    def __init__(self, configuration, retriever, now, last_run_date):
         self.configuration = configuration
         self.retriever = retriever
         self.base_url = self.configuration["base_url"]
         self.get_params = self.configuration["get_params"]
+        self.now = now
         self.last_run_date = last_run_date
         self.iso3_to_id = {}
 
-    def download_data(self, url, basename, add_row_fn):
+    def download_data(self, url, basename, add_rows_fn):
         rows = []
         rows_by_country = {}
-        qc_status_country = {}
+        quickcharts = {}
         countries_to_update = {}
         i = 0
         while url:
             filename = basename.format(index=i)
             json = self.retriever.download_json(url, filename=filename)
             for row in json["results"]:
-                add_row_fn(
-                    rows, rows_by_country, qc_status_country, row, countries_to_update
+                add_rows_fn(
+                    rows, rows_by_country, quickcharts, row, countries_to_update
                 )
             url = json["next"]
             i += 1
-        return rows, rows_by_country, qc_status_country, countries_to_update
+        return rows, rows_by_country, quickcharts, countries_to_update
 
     def get_countries(self):
         dataset_info = self.configuration["countries"]
@@ -61,15 +64,13 @@ class IFRC:
         url = f"{self.base_url}{country_path}{self.get_params}"
         filename = dataset_info["filename"]
 
-        def add_rows(
-            rows, rows_by_country, qc_status_country, row, countries_to_update
-        ):
+        def add_rows(rows, rows_by_country, quickcharts, row, countries_to_update):
             countryiso = row["iso3"]
             ifrc_id = row["id"]
             rows_by_country[countryiso] = ifrc_id
 
         _, self.iso3_to_id, _, _ = self.download_data(
-            url, filename, add_row_fn=add_rows
+            url, filename, add_rows_fn=add_rows
         )
 
     def get_appealdata(self):
@@ -81,29 +82,101 @@ class IFRC:
         additional_params = dataset_info["additional_params"]
         url = f"{self.base_url}{appeal_path}{self.get_params}{additional_params}2020-01-01T00:00:00"
         filename = dataset_info["filename"]
-        qc_statuscode_country = {}
+        indicators = {}
 
-        def add_row(rows, rows_by_country, qc_status_country, row, countries_to_update):
+        def add_row(rows, rows_by_country, quickcharts, row, countries_to_update):
             status = row["status"]
             if status == 3:  # Ignore Archived status
                 return
 
-            row["initial_num_beneficiaries"] = row["num_beneficiaries"]
+            beneficiaries = row["num_beneficiaries"]
+            row["initial_num_beneficiaries"] = beneficiaries
             del row["num_beneficiaries"]
             row = flatten(row)
+            startdate = parse_date(row["start_date"])
+            year_month = startdate.strftime("%Y-%m")
+            monthly_indicators = indicators.get(year_month, {})
             countryiso = row["country.iso3"]
             updated_date = parse_date(row["real_data_update"])
             if updated_date > self.last_run_date:
                 countries_to_update[countryiso] = True
+            country_indicators = monthly_indicators.get(countryiso, {})
+            if row["atype"] == 0:
+                atype = "DREFs"
+            else:
+                atype = "Appeals"
+            country_indicators_atype = country_indicators.get(atype, {})
+            country_indicators_atype["number"] = (
+                country_indicators_atype.get("number", 0) + 1
+            )
+            country_indicators_atype["funded"] = country_indicators_atype.get(
+                "funded", 0
+            ) + float(row["amount_funded"])
+            country_indicators_atype["beneficiaries"] = (
+                country_indicators_atype.get("beneficiaries", 0) + beneficiaries
+            )
+            country_indicators[atype] = country_indicators_atype
+            monthly_indicators[countryiso] = country_indicators
+            indicators[year_month] = monthly_indicators
             row["country.name"] = Country.get_country_name_from_iso3(countryiso)
             rows.append(row)
             dict_of_lists_add(rows_by_country, countryiso, row)
-            qc_status = qc_statuscode_country.get(countryiso, 100)
-            if status < qc_status:
-                qc_statuscode_country[countryiso] = status
-                qc_status_country[countryiso] = row["status_display"]
 
-        return self.download_data(url, filename, add_row_fn=add_row)
+        rows, rows_by_country, quickcharts, countries_to_update = self.download_data(
+            url, filename, add_rows_fn=add_row
+        )
+        oneyearago = self.now - relativedelta(years=1)
+        last_year = oneyearago.year
+        current_month = self.now.month
+        tensyearsago = self.now - relativedelta(years=10)
+        min_year = tensyearsago.year
+
+        qcrows = []
+        qcrows_by_country = {}
+        for year_month in sorted(indicators):
+            year, month = year_month.split("-")
+            year = int(year)
+            if year < min_year:
+                continue
+            month = int(month)
+            if year == min_year and month < current_month:
+                continue
+            row = {"Year": f"{year}-01-01", "Year Month": f"{year_month}-01"}
+            if year > last_year or (year == last_year and month > current_month):
+                row["Last Year"] = "Y"
+            else:
+                row["Last Year"] = "N"
+            monthly_indicators = indicators[year_month]
+            global_indicators = {
+                "DREFs": {"number": 0, "funded": 0, "beneficiaries": 0},
+                "Appeals": {"number": 0, "funded": 0, "beneficiaries": 0},
+            }
+            for countryiso in sorted(monthly_indicators):
+                country_indicators = monthly_indicators[countryiso]
+                for atype in sorted(country_indicators):
+                    country_indicators_atype = country_indicators[atype]
+                    number = country_indicators_atype["number"]
+                    global_indicators[atype]["number"] += number
+                    beneficiaries = country_indicators_atype["beneficiaries"]
+                    global_indicators[atype]["beneficiaries"] += beneficiaries
+                    funded = country_indicators_atype["funded"]
+                    global_indicators[atype]["funded"] += funded
+                    country_row = deepcopy(row)
+                    country_row["Appeal Type"] = atype
+                    country_row["Number of Appeals"] = number
+                    country_row["Funded"] = funded
+                    country_row["Beneficiaries"] = beneficiaries
+                    dict_of_lists_add(qcrows_by_country, countryiso, country_row)
+            for atype in sorted(global_indicators):
+                global_row = deepcopy(row)
+                global_row["Appeal Type"] = atype
+                global_row["Number of Appeals"] = global_indicators[atype]["number"]
+                global_row["Funded"] = global_indicators[atype]["funded"]
+                global_row["Beneficiaries"] = global_indicators[atype]["beneficiaries"]
+                qcrows.append(global_row)
+
+        quickcharts = {"rows": qcrows, "rows_by_country": qcrows_by_country}
+        return rows, rows_by_country, quickcharts, countries_to_update
 
     def get_whowhatwheredata(self):
         dataset_info = self.configuration["whowhatwhere"]
@@ -116,7 +189,7 @@ class IFRC:
         url = f"{self.base_url}{whowhatwhere_path}{self.get_params}{additional_params}{self.last_run_date}T00:00:00"
         filename = dataset_info["filename"]
 
-        def add_row(rows, rows_by_country, qc_status_country, row, countries_to_update):
+        def add_row(rows, rows_by_country, quickcharts, row, countries_to_update):
             countryiso = row["project_country_detail"]["iso3"]
             countryname = Country.get_country_name_from_iso3(countryiso)
             district_names = ", ".join(
@@ -167,23 +240,26 @@ class IFRC:
             }
             rows.append(row)
             dict_of_lists_add(rows_by_country, countryiso, row)
-            qc_status = qc_status_country.get(countryiso)
+            quickcharts = quickcharts.get("status_country", {})
+            qc_status = quickcharts.get(countryiso)
             if qc_status is None or status_display == "Ongoing":
-                qc_status_country[countryiso] = status_display
+                quickcharts[countryiso] = status_display
+            quickcharts["status_country"] = quickcharts
 
-        return self.download_data(url, filename, add_row_fn=add_row)
+        return self.download_data(url, filename, add_rows_fn=add_row)
 
     def generate_dataset_and_showcase(
         self,
         folder,
         rows,
         dataset_type,
+        quickcharts,
         countryiso=None,
         global_dataset=None,
     ):
         """ """
         if rows is None:
-            return None, None
+            return None, None, None
         dataset_info = self.configuration[dataset_type]
         heading = dataset_info["heading"]
         global_name = f"Global IFRC {heading} Data"
@@ -192,7 +268,7 @@ class IFRC:
             countryname = Country.get_country_name_from_iso3(countryiso)
             if countryname is None:
                 logger.error(f"Unknown ISO 3 code {countryiso}!")
-                return None, None
+                return None, None, None
             title = f"{countryname} - IFRC {heading}"
             name = f"IFRC {heading} Data for {countryname}"
             filename = f"{heading.lower()}_data_{countryiso.lower()}.csv"
@@ -266,8 +342,30 @@ class IFRC:
         )
         if success is False:
             logger.warning(f"{name} has no data!")
-            return None, None
+            return None, None, None
 
+        if not countryiso:
+            qcrows = quickcharts.get("rows")
+        else:
+            qcrows_by_country = quickcharts.get("rows_by_country", {})
+            qcrows = qcrows_by_country.get(countryiso)
+        if qcrows:
+            resourcedata = {
+                "name": name.replace("Data", "QuickCharts Data"),
+                "description": f"IFRC {heading} QuickCharts data with HXL tags",
+            }
+            success, results = dataset.generate_resource_from_iterator(
+                list(qcrows[0].keys()),
+                qcrows,
+                dataset_info["quickcharts_hxltags"],
+                folder,
+                f"qc_{filename}",
+                resourcedata,
+            )
+        if success is False:
+            qc_resource = None
+        else:
+            qc_resource = results["resource"]
         showcase_urls = dataset_info["showcase_urls"]
         if countryiso:
             showcase_url = showcase_urls.get("country")
@@ -288,4 +386,4 @@ class IFRC:
             showcase.add_tags(tags)
         else:
             showcase = None
-        return dataset, showcase
+        return dataset, showcase, qc_resource
