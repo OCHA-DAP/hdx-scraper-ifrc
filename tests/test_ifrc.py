@@ -29,7 +29,7 @@ class TestIFRC:
         )
         UserAgent.set_global("test")
         Country.countriesdata(use_live=False)
-        tags = ["hxl", "aid funding"]
+        tags = ["hxl", "funding"]
         Vocabulary._tags_dict = {tag: {"Action to Take": "ok"} for tag in tags}
         tags = [{"name": tag} for tag in tags]
         Vocabulary._approved_vocabulary = {
@@ -68,11 +68,13 @@ class TestIFRC:
                     appeal_rows,
                     appeal_country_rows,
                     appeal_quickcharts,
+                    appeal_countries_to_update,
                 ) = ifrc.get_appealdata()
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
                     whowhatwhere_quickcharts,
+                    whowhatwhere_countries_to_update,
                 ) = ifrc.get_whowhatwheredata()
                 assert len(appeal_rows) == 144
                 assert len(appeal_country_rows["BDI"]) == 1

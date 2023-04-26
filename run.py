@@ -46,7 +46,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 (
                     appeal_rows,
                     appeal_country_rows,
-                    appeal_qc_status,
+                    appeal_quickcharts,
                     appeal_countries_to_update,
                 ) = ifrc.get_appealdata()
                 countries_list = []
@@ -55,7 +55,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
-                    whowhatwhere_qc_status,
+                    whowhatwhere_quickcharts,
                     whowhatwhere_countries_to_update,
                 ) = ifrc.get_whowhatwheredata()
                 if whowhatwhere_countries_to_update:
@@ -92,7 +92,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                             findreplace = None
                         else:
                             findreplace = {"{{#status+name}}": qcstatus_country}
-                    dataset.generate_resource_view(
+                    dataset.generate_quickcharts(
                         qc_resource, path=resource_view_path, findreplace=findreplace
                     )
                     dataset.create_in_hdx(
@@ -102,9 +102,9 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         batch=info["batch"],
                     )
 
-                        if showcase:
-                            showcase.create_in_hdx()
-                            showcase.add_dataset(dataset)
+                    if showcase:
+                        showcase.create_in_hdx()
+                        showcase.add_dataset(dataset)
 
                 (
                     appeals_dataset,
@@ -141,7 +141,11 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 )
                 for _, country in progress_storing_folder(info, countries, "iso3"):
                     countryiso = country["iso3"]
-                    dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(
+                    (
+                        dataset,
+                        showcase,
+                        qc_resource,
+                    ) = ifrc.generate_dataset_and_showcase(
                         folder,
                         appeal_country_rows,
                         "appeals",
@@ -150,61 +154,29 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         appeals_dataset,
                     )
                     create_dataset(
-                        appeals_dataset,
+                        dataset,
                         showcase,
                         qc_resource,
                         join("config", "hdx_appeals_dataset.yml"),
                         join("config", "hdx_country_appeals_resource_view.yml"),
-                        appeal_quickcharts,
+                        quickcharts=appeal_quickcharts,
                     )
                     dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(
                         folder,
-                        whowhatwhere_rows,
+                        whowhatwhere_country_rows,
                         "whowhatwhere",
                         whowhatwhere_quickcharts,
                         countryiso,
                         whowhatwhere_dataset,
                     )
                     create_dataset(
-                        whowhatwhere_dataset,
+                        dataset,
                         showcase,
                         qc_resource,
                         join("config", "hdx_whowhatwhere_dataset.yml"),
                         join("config", "hdx_country_whowhatwhere_resource_view.yml"),
                         quickcharts=whowhatwhere_quickcharts,
                     )
-                    for _, country in progress_storing_folder(info, countries, "iso3"):
-                        countryiso = country["iso3"]
-                        dataset, showcase = ifrc.generate_dataset_and_showcase(
-                            folder,
-                            appeal_country_rows,
-                            "appeals",
-                            countryiso,
-                            appeals_dataset,
-                        )
-                        create_dataset(
-                            dataset,
-                            showcase,
-                            join("config", "hdx_appeals_dataset.yml"),
-                            join("config", "hdx_country_appeals_resource_view.yml"),
-                            qcstatus=appeal_qc_status,
-                        )
-                        dataset, showcase = ifrc.generate_dataset_and_showcase(
-                            folder,
-                            whowhatwhere_country_rows,
-                            "whowhatwhere",
-                            countryiso,
-                            whowhatwhere_dataset,
-                        )
-                        create_dataset(
-                            dataset,
-                            showcase,
-                            join("config", "hdx_whowhatwhere_dataset.yml"),
-                            join(
-                                "config", "hdx_country_whowhatwhere_resource_view.yml"
-                            ),
-                            qcstatus=whowhatwhere_qc_status,
-                        )
                 else:
                     logger.info("Nothing to update!")
 

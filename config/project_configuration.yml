@@ -39,11 +39,11 @@ appeals:
   quickcharts_hxltags:
     "Year": "#date+year"
     "Year Month": "#date+yearmonth"
-    "Last Year": "#meta+last_year"
-    "DREF Appeals": "#indicator+appeal+dref+num"
-    "Emergency Appeals": "#indicator+appeal+emergency+num"
-    "Requested": "#value+funding+required+chf"
+    "Last Year": "#meta+lastyear"
+    "Appeal Type": "#meta+appeal+type"
+    "Number of Appeals": "#indicator+appeal+num"
     "Funded": "#value+funding+total+chf"
+    "Beneficiaries": "#beneficiaries+num"
 
 whowhatwhere:
   publish: False
