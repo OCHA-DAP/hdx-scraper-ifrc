@@ -61,10 +61,9 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 if whowhatwhere_countries_to_update:
                     countries_list.append(set(whowhatwhere_countries_to_update))
 
-                if countries_list:
-                    countries = set().union(*countries_list)
-                    countries = [{"iso3": x} for x in sorted(countries)]
-                    logger.info(f"Number of countries: {len(countries)}")
+                countries = set().union(*countries_list)
+                countries = [{"iso3": x} for x in sorted(countries)]
+                logger.info(f"Number of countries: {len(countries)}")
 
                 def create_dataset(
                     dataset,
@@ -106,39 +105,40 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         showcase.create_in_hdx()
                         showcase.add_dataset(dataset)
 
-                (
-                    appeals_dataset,
-                    showcase,
-                    qc_resource,
-                ) = ifrc.generate_dataset_and_showcase(
-                    folder, appeal_rows, "appeals", appeal_quickcharts
-                )
-                create_dataset(
-                    appeals_dataset,
-                    showcase,
-                    qc_resource,
-                    join("config", "hdx_appeals_dataset.yml"),
-                    join("config", "hdx_global_appeals_resource_view.yml"),
-                    appeal_quickcharts,
-                )
-                (
-                    whowhatwhere_dataset,
-                    showcase,
-                    qc_resource,
-                ) = ifrc.generate_dataset_and_showcase(
-                    folder,
-                    whowhatwhere_rows,
-                    "whowhatwhere",
-                    whowhatwhere_quickcharts,
-                )
-                create_dataset(
-                    whowhatwhere_dataset,
-                    showcase,
-                    qc_resource,
-                    join("config", "hdx_whowhatwhere_dataset.yml"),
-                    join("config", "hdx_global_whowhatwhere_resource_view.yml"),
-                    whowhatwhere_quickcharts,
-                )
+                if countries:
+                    (
+                        appeals_dataset,
+                        showcase,
+                        qc_resource,
+                    ) = ifrc.generate_dataset_and_showcase(
+                        folder, appeal_rows, "appeals", appeal_quickcharts
+                    )
+                    create_dataset(
+                        appeals_dataset,
+                        showcase,
+                        qc_resource,
+                        join("config", "hdx_appeals_dataset.yml"),
+                        join("config", "hdx_global_appeals_resource_view.yml"),
+                        appeal_quickcharts,
+                    )
+                    (
+                        whowhatwhere_dataset,
+                        showcase,
+                        qc_resource,
+                    ) = ifrc.generate_dataset_and_showcase(
+                        folder,
+                        whowhatwhere_rows,
+                        "whowhatwhere",
+                        whowhatwhere_quickcharts,
+                    )
+                    create_dataset(
+                        whowhatwhere_dataset,
+                        showcase,
+                        qc_resource,
+                        join("config", "hdx_whowhatwhere_dataset.yml"),
+                        join("config", "hdx_global_whowhatwhere_resource_view.yml"),
+                        whowhatwhere_quickcharts,
+                    )
                 for _, country in progress_storing_folder(info, countries, "iso3"):
                     countryiso = country["iso3"]
                     (
