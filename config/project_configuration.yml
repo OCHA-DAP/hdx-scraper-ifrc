@@ -45,6 +45,60 @@ appeals:
     "Funded": "#value+funding+total+chf"
     "Beneficiaries": "#beneficiaries+num"
 
+personnel:
+  publish: True
+  url_path: "personnel"
+  additional_params: "&deployment__updated_at__gte="
+  filename: "personnel_{index}.json"
+  heading: "Personnel"
+  tags:
+    - "operational capacity"
+  header_replacements:
+    "deployment.country_deployed_to": "country_deployed_to"
+    "deployment.region_deployed_to": "region_deployed_to"
+    "deployment.event_deployed_to": "event_deployed_to"
+  hxltags:
+    "start_date": "#date+start"
+    "end_date": "#date+end"
+    "type": "#role+type"
+    "country_from.iso": "#country+from+code+v_iso2"
+    "country_from.iso3": "#country+from+code"
+    "country_from.society_name": "#org+national_society+from"
+    "country_from.name": "#country+from+name"
+    "country_to.iso": "#country+to+code+v_iso2"
+    "country_to.iso3": "#country+to+code"
+    "country_to.society_name": "#org+national_society+to"
+    "country_to.name": "#country+to+name"
+    "country_deployed_to.iso": "#country+deployed+code+v_iso2"
+    "country_deployed_to.iso3": "#country+deployed+code"
+    "country_deployed_to.society_name": "#org+national_society+deployed"
+    "country_deployed_to.name": "#country+deployed+name"
+    "event_deployed_to.dtype.id": "#event+type+code"
+    "event_deployed_to.dtype.name": "#event+type+name"
+    "event_deployed_to.dtype.summary": "#event+type+decription"
+    "event_deployed_to.countries.iso": "#country+event+code+v_iso2"
+    "event_deployed_to.countries.iso3": "#country+event+code"
+    "event_deployed_to.countries.society_name": "#org+national_society+event"
+    "event_deployed_to.countries.name": "#country+event+name"
+    "event_deployed_to.ifrc_severity_level": "#severity+code+ifrc"
+    "event_deployed_to.ifrc_severity_level_display": "#severity+name+ifrc"
+    "event_deployed_to.glide": "#event+code+v_glide"
+    "event_deployed_to.disaster_start_date": "#date+disaster+start"
+    "event_deployed_to.id": "#event+code+ifrc"
+    "event_deployed_to.name": "#event+name"
+    "is_active": "#status+active"
+    "role": "#role+name"
+  showcase_urls:
+    global: "https://go.ifrc.org/deployments/overview/"
+  quickcharts_hxltags:
+    "Year": "#date+year"
+    "Year Month": "#date+yearmonth"
+    "Last Year": "#meta+lastyear"
+    "Appeal Type": "#meta+appeal+type"
+    "Number of Appeals": "#indicator+appeal+num"
+    "Funded": "#value+funding+total+chf"
+    "Beneficiaries": "#beneficiaries+num"
+
 whowhatwhere:
   publish: False
   url_path: "project"

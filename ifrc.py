@@ -20,14 +20,31 @@ from slugify import slugify
 logger = logging.getLogger(__name__)
 
 
-def flatten(data):
+def flatten(data, header_replacements={}, parent_key=None):
     new_data = {}
     for key, value in data.items():
-        if not isinstance(value, dict):
-            new_data[key] = value
+        if parent_key:
+            full_key = f"{parent_key}.{key}"
         else:
-            for k, v in value.items():
-                new_data[f"{key}.{k}"] = v
+            full_key = key
+        for header_replacement, replacement in header_replacements.items():
+            full_key = full_key.replace(header_replacement, replacement)
+        if isinstance(value, dict):
+            child_data = flatten(value, header_replacements, full_key)
+            for k, v in child_data.items():
+                new_data[k] = v
+        elif isinstance(value, list):
+            for element in value:
+                child_data = flatten(element, header_replacements, full_key)
+                for k, v in child_data.items():
+                    if isinstance(v, str):
+                        existing_value = new_data.get(k)
+                        if existing_value is None:
+                            new_data[k] = v
+                        else:
+                            new_data[k] = f"{existing_value},{v}"
+        else:
+            new_data[full_key] = value
     return new_data
 
 
@@ -66,6 +83,8 @@ class IFRC:
 
         def add_rows(rows, rows_by_country, quickcharts, row, countries_to_update):
             countryiso = row["iso3"]
+            if not countryiso:
+                return
             ifrc_id = row["id"]
             rows_by_country[countryiso] = ifrc_id
 
@@ -173,6 +192,110 @@ class IFRC:
                 global_row["Number of Appeals"] = global_indicators[atype]["number"]
                 global_row["Funded"] = global_indicators[atype]["funded"]
                 global_row["Beneficiaries"] = global_indicators[atype]["beneficiaries"]
+                qcrows.append(global_row)
+
+        quickcharts = {"rows": qcrows, "rows_by_country": qcrows_by_country}
+        return rows, rows_by_country, quickcharts, countries_to_update
+
+    def get_personneldata(self):
+        # https://goadmin.ifrc.org/api/v2/personnel/?limit=1&offset=1180&format=json
+        # event_deployed_to.countries
+        dataset_info = self.configuration["personnel"]
+        publish = dataset_info["publish"]
+        if not publish:
+            return None, None, None, None
+        personnel_path = dataset_info["url_path"]
+        additional_params = dataset_info["additional_params"]
+        url = f"{self.base_url}{personnel_path}{self.get_params}{additional_params}2020-01-01T00:00:00"
+        filename = dataset_info["filename"]
+        indicators = {}
+
+        def add_row(rows, rows_by_country, quickcharts, row, countries_to_update):
+            deployment = row["deployment"]
+            event_deployed_to = deployment["event_deployed_to"]
+            if event_deployed_to:
+                status = 3
+                for appeal in event_deployed_to.get("appeals", []):
+                    if appeal["status"] != 3:
+                        status = 0
+                if status == 3:  # Ignore Archived status
+                    return
+            row = flatten(row, dataset_info["header_replacements"])
+
+            countryisos_event = row.get("event_deployed_to.countries.iso3")
+            if not countryisos_event:
+                raise ValueError(f"event_deployed_to.countries.iso3 is empty")
+            # startdate = parse_date(row["start_date"])
+            # year_month = startdate.strftime("%Y-%m")
+            # monthly_indicators = indicators.get(year_month, {})
+            # countryiso_to = row["country_to.iso3"]
+            # updated_date = parse_date(row["event_deployed_to.updated_at"])
+            # if updated_date > self.last_run_date:
+            #     countries_to_update[countryiso_to] = True
+            # country_indicators = monthly_indicators.get(countryiso_to,
+            #                                             {})
+            # national_society_from = row["country_from.society_name"]
+            # society_deployment = country_indicators.get(national_society_from, 0) + 1
+            # country_indicators[national_society_from] = society_deployment
+            # monthly_indicators[countryiso_to] = country_indicators
+            # indicators[year_month] = monthly_indicators
+            # countryiso_from = row.get("country_from.iso3")
+            # if countryiso_from:
+            #     row["country_from.name"] = Country.get_country_name_from_iso3(
+            #         countryiso_from
+            #     )
+            # row["country_to.name"] = Country.get_country_name_from_iso3(countryiso_to)
+            # countryiso_deployed_to = row["country_deployed_to.iso3"]
+            # if countryiso_deployed_to:
+            #     row["country_deployed_to.name"] = Country.get_country_name_from_iso3(
+            #         countryiso_deployed_to
+            #     )
+            # countryisos_event = row["event_deployed_to.countries.iso3"].split(",")
+            # row["event_deployed_to.countries.name"] = ",".join(
+            #     [Country.get_country_name_from_iso3(x) for x in countryisos_event]
+            # )
+            # rows.append(row)
+            # dict_of_lists_add(rows_by_country, countryiso_to, row)
+
+        rows, rows_by_country, quickcharts, countries_to_update = self.download_data(
+            url, filename, add_rows_fn=add_row
+        )
+        oneyearago = self.now - relativedelta(years=1)
+        last_year = oneyearago.year
+        current_month = self.now.month
+        tensyearsago = self.now - relativedelta(years=10)
+        min_year = tensyearsago.year
+
+        qcrows = []
+        qcrows_by_country = {}
+        for year_month in sorted(indicators):
+            year, month = year_month.split("-")
+            year = int(year)
+            if year < min_year:
+                continue
+            month = int(month)
+            if year == min_year and month < current_month:
+                continue
+            row = {"Year": f"{year}-01-01", "Year Month": f"{year_month}-01"}
+            if year > last_year or (year == last_year and month > current_month):
+                row["Last Year"] = "Y"
+            else:
+                row["Last Year"] = "N"
+            monthly_indicators = indicators[year_month]
+            global_indicators = {}
+            for countryiso in sorted(monthly_indicators):
+                country_indicators = monthly_indicators[countryiso]
+                for national_society in sorted(country_indicators):
+                    natsoc_deployments = country_indicators[national_society]
+                    global_indicators[national_society] = global_indicators.get(national_society, 0) + natsoc_deployments
+                    country_row = deepcopy(row)
+                    country_row["National Society"] = national_society
+                    country_row["Number of Deployments"] = natsoc_deployments
+                    dict_of_lists_add(qcrows_by_country, countryiso, country_row)
+            for national_society in sorted(global_indicators):
+                global_row = deepcopy(row)
+                global_row["National Society"] = national_society
+                global_row["Number of Deployments"] = global_indicators[national_society]
                 qcrows.append(global_row)
 
         quickcharts = {"rows": qcrows, "rows_by_country": qcrows_by_country}

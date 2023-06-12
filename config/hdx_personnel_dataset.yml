@@ -1,0 +1,6 @@
+notes: "The International Federation of Red Cross and Red Crescent Societies (IFRC) is the world’s largest humanitarian network. Our secretariat supports local Red Cross and Red Crescent action in more than 192 countries, bringing together almost 15 million volunteers for the good of humanity.\n\nOur surge mechanism is accountable, fit for purpose and an important part of our global disaster response system. We deploy the right people and services to the right place at the right time—always as locally as possible, as internationally as necessary. Through our surge mechanism, we are helping build the capacity of National Society staff and volunteers and supporting disaster preparedness initiatives."
+license_id: "cc-by-igo"
+methodology: "Registry"
+dataset_source: "IFRC"
+package_creator: "mcarans"
+private: False  # has to be True or False

@@ -53,6 +53,14 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 if appeal_countries_to_update:
                     countries_list.append(set(appeal_countries_to_update))
                 (
+                    personnel_rows,
+                    personnel_country_rows,
+                    personnel_quickcharts,
+                    personnel_countries_to_update,
+                ) = ifrc.get_personneldata()
+                if personnel_countries_to_update:
+                    countries_list.append(set(personnel_countries_to_update))
+                (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
                     whowhatwhere_quickcharts,
@@ -122,6 +130,21 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         appeal_quickcharts,
                     )
                     (
+                        personnel_dataset,
+                        showcase,
+                        qc_resource,
+                    ) = ifrc.generate_dataset_and_showcase(
+                        folder, appeal_rows, "personnel", personnel_quickcharts
+                    )
+                    create_dataset(
+                        personnel_dataset,
+                        showcase,
+                        qc_resource,
+                        join("config", "hdx_personnel_dataset.yml"),
+                        join("config", "hdx_global_personnel_resource_view.yml"),
+                        personnel_quickcharts,
+                    )
+                    (
                         whowhatwhere_dataset,
                         showcase,
                         qc_resource,
@@ -159,6 +182,26 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         qc_resource,
                         join("config", "hdx_appeals_dataset.yml"),
                         join("config", "hdx_country_appeals_resource_view.yml"),
+                        quickcharts=appeal_quickcharts,
+                    )
+                    (
+                        dataset,
+                        showcase,
+                        qc_resource,
+                    ) = ifrc.generate_dataset_and_showcase(
+                        folder,
+                        personnel_country_rows,
+                        "personnel",
+                        personnel_quickcharts,
+                        countryiso,
+                        personnel_dataset,
+                    )
+                    create_dataset(
+                        dataset,
+                        showcase,
+                        qc_resource,
+                        join("config", "hdx_personnel_dataset.yml"),
+                        join("config", "hdx_country_personnel_resource_view.yml"),
                         quickcharts=appeal_quickcharts,
                     )
                     dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(

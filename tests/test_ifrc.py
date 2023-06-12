@@ -70,17 +70,26 @@ class TestIFRC:
                     appeal_quickcharts,
                     appeal_countries_to_update,
                 ) = ifrc.get_appealdata()
+                assert len(appeal_rows) == 144
+                assert len(appeal_country_rows["BDI"]) == 1
+                assert len(appeal_countries_to_update) == 44
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
                     whowhatwhere_quickcharts,
                     whowhatwhere_countries_to_update,
                 ) = ifrc.get_whowhatwheredata()
-                assert len(appeal_rows) == 144
-                assert len(appeal_country_rows["BDI"]) == 1
-                assert len(appeal_countries_to_update) == 44
                 assert whowhatwhere_rows is None
                 assert whowhatwhere_country_rows is None
+                (
+                    personnel_rows,
+                    personnel_country_rows,
+                    personnel_quickcharts,
+                    personnel_countries_to_update,
+                ) = ifrc.get_personneldata()
+                assert personnel_rows is None
+                assert personnel_country_rows is None
+                assert len(personnel_countries_to_update) == 44
 
                 countries = set(appeal_country_rows)
                 countries.add("world")
