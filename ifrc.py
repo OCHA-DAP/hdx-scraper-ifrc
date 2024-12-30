@@ -97,6 +97,9 @@ class IFRC:
             year_month = startdate.strftime("%Y-%m")
             monthly_indicators = indicators.get(year_month, {})
             countryiso = row["country.iso3"]
+            if not countryiso:  # Ignore blank country
+                logger.error(f"Missing country iso3 for appeal with aid {row['aid']} and name {row['name']}!")
+                return
             updated_date = parse_date(row["real_data_update"])
             if updated_date > self.last_run_date:
                 countries_to_update[countryiso] = True

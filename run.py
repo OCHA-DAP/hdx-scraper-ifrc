@@ -117,8 +117,8 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         appeals_dataset,
                         showcase,
                         qc_resource,
-                        join("config", "hdx_appeals_dataset.yml"),
-                        join("config", "hdx_global_appeals_resource_view.yml"),
+                        join("config", "hdx_appeals_dataset.yaml"),
+                        join("config", "hdx_global_appeals_resource_view.yaml"),
                         appeal_quickcharts,
                     )
                     (
@@ -135,8 +135,8 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         whowhatwhere_dataset,
                         showcase,
                         qc_resource,
-                        join("config", "hdx_whowhatwhere_dataset.yml"),
-                        join("config", "hdx_global_whowhatwhere_resource_view.yml"),
+                        join("config", "hdx_whowhatwhere_dataset.yaml"),
+                        join("config", "hdx_global_whowhatwhere_resource_view.yaml"),
                         whowhatwhere_quickcharts,
                     )
                 for _, country in progress_storing_folder(info, countries, "iso3"):
@@ -157,8 +157,8 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         dataset,
                         showcase,
                         qc_resource,
-                        join("config", "hdx_appeals_dataset.yml"),
-                        join("config", "hdx_country_appeals_resource_view.yml"),
+                        join("config", "hdx_appeals_dataset.yaml"),
+                        join("config", "hdx_country_appeals_resource_view.yaml"),
                         quickcharts=appeal_quickcharts,
                     )
                     dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(
@@ -173,8 +173,8 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                         dataset,
                         showcase,
                         qc_resource,
-                        join("config", "hdx_whowhatwhere_dataset.yml"),
-                        join("config", "hdx_country_whowhatwhere_resource_view.yml"),
+                        join("config", "hdx_whowhatwhere_dataset.yaml"),
+                        join("config", "hdx_country_whowhatwhere_resource_view.yaml"),
                         quickcharts=whowhatwhere_quickcharts,
                     )
                 else:
@@ -186,7 +186,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
 if __name__ == "__main__":
     facade(
         main,
-        user_agent_config_yaml=join(expanduser("~"), ".useragents.yml"),
+        user_agent_config_yaml=join(expanduser("~"), ".useragents.yaml"),
         user_agent_lookup=lookup,
-        project_config_yaml=join("config", "project_configuration.yml"),
+        project_config_yaml=join("config", "project_configuration.yaml"),
     )
