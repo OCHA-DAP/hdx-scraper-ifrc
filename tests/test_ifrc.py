@@ -3,20 +3,22 @@
 Unit tests for InterAction.
 
 """
+
 from os.path import join
 
 import pytest
+
 from hdx.api.configuration import Configuration
 from hdx.api.locations import Locations
 from hdx.data.vocabulary import Vocabulary
 from hdx.location.country import Country
+from hdx.scraper.ifrc.pipeline import Pipeline
 from hdx.utilities.compare import assert_files_same
 from hdx.utilities.dateparse import parse_date
 from hdx.utilities.downloader import Download
 from hdx.utilities.path import temp_dir
 from hdx.utilities.retriever import Retrieve
 from hdx.utilities.useragent import UserAgent
-from ifrc import IFRC
 
 
 class TestIFRC:
@@ -25,7 +27,9 @@ class TestIFRC:
         Configuration._create(
             hdx_read_only=True,
             user_agent="test",
-            project_config_yaml=join("config", "project_configuration.yaml"),
+            project_config_yaml=join(
+                "src", "hdx", "scraper", "ifrc", "config", "project_configuration.yaml"
+            ),
         )
         UserAgent.set_global("test")
         Country.countriesdata(use_live=False)
@@ -57,7 +61,7 @@ class TestIFRC:
                 retriever = Retrieve(
                     downloader, folder, input_folder, folder, False, True
                 )
-                ifrc = IFRC(
+                ifrc = Pipeline(
                     configuration,
                     retriever,
                     parse_date("2023-03-01"),
@@ -123,21 +127,21 @@ class TestIFRC:
                     "description": "IFRC Appeals data with HXL tags",
                     "format": "csv",
                     "name": "Global IFRC Appeals Data",
-                    "resource_type": "file.upload",
-                    "url_type": "upload",
                 }
                 filename = "appeals_data_global.csv"
-                assert_files_same(join(fixtures, filename), resource.file_to_upload)
+                assert_files_same(
+                    join(fixtures, filename), resource.get_file_to_upload()
+                )
                 resource = resources[1]
                 assert resource == {
                     "description": "IFRC Appeals QuickCharts data with HXL tags",
                     "format": "csv",
                     "name": "Global IFRC Appeals QuickCharts Data",
-                    "resource_type": "file.upload",
-                    "url_type": "upload",
                 }
                 filename = "qc_appeals_data_global.csv"
-                assert_files_same(join(fixtures, filename), resource.file_to_upload)
+                assert_files_same(
+                    join(fixtures, filename), resource.get_file_to_upload()
+                )
                 assert showcase == {
                     "image_url": "https://avatars.githubusercontent.com/u/22204810?s=200&v=4",
                     "name": "global-ifrc-appeals-data-showcase",
@@ -193,19 +197,19 @@ class TestIFRC:
                     "description": "IFRC Appeals data with HXL tags",
                     "format": "csv",
                     "name": "IFRC Appeals Data for Burundi",
-                    "resource_type": "file.upload",
-                    "url_type": "upload",
                 }
                 filename = "appeals_data_bdi.csv"
-                assert_files_same(join(fixtures, filename), resource.file_to_upload)
+                assert_files_same(
+                    join(fixtures, filename), resource.get_file_to_upload()
+                )
                 resource = resources[1]
                 assert resource == {
                     "description": "IFRC Appeals QuickCharts data with HXL tags",
                     "format": "csv",
                     "name": "IFRC Appeals QuickCharts Data for Burundi",
-                    "resource_type": "file.upload",
-                    "url_type": "upload",
                 }
                 filename = "qc_appeals_data_bdi.csv"
-                assert_files_same(join(fixtures, filename), resource.file_to_upload)
+                assert_files_same(
+                    join(fixtures, filename), resource.get_file_to_upload()
+                )
                 assert showcase is None
