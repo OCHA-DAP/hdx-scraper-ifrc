@@ -6,16 +6,18 @@ IFRC:
 Reads IFRC data and creates datasets.
 
 """
+
 import logging
 from copy import deepcopy
 
 from dateutil.relativedelta import relativedelta
+from slugify import slugify
+
 from hdx.data.dataset import Dataset
 from hdx.data.showcase import Showcase
 from hdx.location.country import Country
 from hdx.utilities.dateparse import parse_date
 from hdx.utilities.dictandlist import dict_of_lists_add
-from slugify import slugify
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ def flatten(data):
     return new_data
 
 
-class IFRC:
+class Pipeline:
     def __init__(self, configuration, retriever, now, last_run_date):
         self.configuration = configuration
         self.retriever = retriever
@@ -98,7 +100,9 @@ class IFRC:
             monthly_indicators = indicators.get(year_month, {})
             countryiso = row["country.iso3"]
             if not countryiso:  # Ignore blank country
-                logger.error(f"Missing country iso3 for appeal with aid {row['aid']} and name {row['name']}!")
+                logger.error(
+                    f"Missing country iso3 for appeal with aid {row['aid']} and name {row['name']}!"
+                )
                 return
             updated_date = parse_date(row["real_data_update"])
             if updated_date > self.last_run_date:
@@ -281,9 +285,7 @@ class IFRC:
             title = f"Global - IFRC {heading}"
             name = global_name
             filename = f"{heading.lower()}_data_global.csv"
-            notes = (
-                f"This data can also be found as individual country datasets on HDX."
-            )
+            notes = "This data can also be found as individual country datasets on HDX."
 
         logger.info(f"Creating dataset: {title}")
         slugified_name = slugify(name).lower()
