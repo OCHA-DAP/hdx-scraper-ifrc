@@ -8,7 +8,9 @@ import logging
 from os.path import expanduser, join
 
 from hdx.api.configuration import Configuration
+from hdx.data.user import User
 from hdx.facades.infer_arguments import facade
+from hdx.scraper.ifrc._version import __version__
 from hdx.scraper.ifrc.pipeline import Pipeline
 from hdx.utilities.dateparse import iso_string_from_datetime, now_utc, parse_date
 from hdx.utilities.downloader import Download
@@ -37,7 +39,11 @@ def main(save: bool = False, use_saved: bool = False) -> None:
         None
     """
 
+    logger.info(f"##### {lookup} version {__version__} ####")
     configuration = Configuration.read()
+    User.check_current_user_write_access(
+        "3ada79f1-a239-4e09-bb2e-55743b7e6b69", configuration=configuration
+    )
     with State("last_run_date.txt", parse_date, iso_string_from_datetime) as state:
         with wheretostart_tempdir_batch(lookup) as info:
             folder = info["folder"]
