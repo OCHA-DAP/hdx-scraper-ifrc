@@ -7,10 +7,10 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "hdx-scraper-idmc-idu"
+name = "hdx-scraper-ifrc"
 requires-python = ">=3.8"
 dependencies = [
-  "hdx-python-api>= 6.5.2",
+  "hdx-python-api>= 6.5.4",
   "hdx-python-country>= 3.9.8",
   "hdx-python-utilities>= 3.9.5",
 ]
