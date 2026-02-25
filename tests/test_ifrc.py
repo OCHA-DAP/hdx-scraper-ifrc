@@ -33,7 +33,7 @@ class TestIFRC:
         )
         UserAgent.set_global("test")
         Country.countriesdata(use_live=False)
-        tags = ["hxl", "funding"]
+        tags = ["funding"]
         Vocabulary._tags_dict = {tag: {"Action to Take": "ok"} for tag in tags}
         tags = [{"name": tag} for tag in tags]
         Vocabulary._approved_vocabulary = {
@@ -71,13 +71,11 @@ class TestIFRC:
                 (
                     appeal_rows,
                     appeal_country_rows,
-                    appeal_quickcharts,
                     appeal_countries_to_update,
                 ) = ifrc.get_appealdata()
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
-                    whowhatwhere_quickcharts,
                     whowhatwhere_countries_to_update,
                 ) = ifrc.get_whowhatwheredata()
                 assert len(appeal_rows) == 144
@@ -95,10 +93,7 @@ class TestIFRC:
                 (
                     appeals_dataset,
                     showcase,
-                    qc_resource,
-                ) = ifrc.generate_dataset_and_showcase(
-                    folder, appeal_rows, "appeals", appeal_quickcharts
-                )
+                ) = ifrc.generate_dataset_and_showcase(folder, appeal_rows, "appeals")
                 assert appeals_dataset == {
                     "data_update_frequency": "7",
                     "dataset_date": "[1993-03-08T00:00:00 TO 2028-02-29T23:59:59]",
@@ -110,35 +105,19 @@ class TestIFRC:
                     "subnational": "0",
                     "tags": [
                         {
-                            "name": "hxl",
-                            "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
-                        },
-                        {
                             "name": "funding",
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                     ],
                     "title": "Global - IFRC Appeals",
                 }
-                resources = appeals_dataset.get_resources()
-                assert len(resources) == 2
-                resource = resources[0]
+                resource = appeals_dataset.get_resource()
                 assert resource == {
-                    "description": "IFRC Appeals data with HXL tags",
+                    "description": "IFRC Appeals data",
                     "format": "csv",
                     "name": "Global IFRC Appeals Data",
                 }
                 filename = "appeals_data_global.csv"
-                assert_files_same(
-                    join(fixtures, filename), resource.get_file_to_upload()
-                )
-                resource = resources[1]
-                assert resource == {
-                    "description": "IFRC Appeals QuickCharts data with HXL tags",
-                    "format": "csv",
-                    "name": "Global IFRC Appeals QuickCharts Data",
-                }
-                filename = "qc_appeals_data_global.csv"
                 assert_files_same(
                     join(fixtures, filename), resource.get_file_to_upload()
                 )
@@ -148,10 +127,6 @@ class TestIFRC:
                     "notes": "IFRC Go Dashboard of Appeals Data",
                     "tags": [
                         {
-                            "name": "hxl",
-                            "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
-                        },
-                        {
                             "name": "funding",
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
@@ -160,11 +135,10 @@ class TestIFRC:
                     "url": "https://go.ifrc.org/",
                 }
 
-                dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(
+                dataset, showcase = ifrc.generate_dataset_and_showcase(
                     folder,
                     appeal_country_rows,
                     "appeals",
-                    appeal_quickcharts,
                     "BDI",
                     appeals_dataset,
                 )
@@ -180,35 +154,19 @@ class TestIFRC:
                     "subnational": "0",
                     "tags": [
                         {
-                            "name": "hxl",
-                            "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
-                        },
-                        {
                             "name": "funding",
                             "vocabulary_id": "b891512e-9516-4bf5-962a-7a289772a2a1",
                         },
                     ],
                     "title": "Burundi - IFRC Appeals",
                 }
-                resources = dataset.get_resources()
-                assert len(resources) == 2
-                resource = resources[0]
+                resource = dataset.get_resource()
                 assert resource == {
-                    "description": "IFRC Appeals data with HXL tags",
+                    "description": "IFRC Appeals data",
                     "format": "csv",
                     "name": "IFRC Appeals Data for Burundi",
                 }
                 filename = "appeals_data_bdi.csv"
-                assert_files_same(
-                    join(fixtures, filename), resource.get_file_to_upload()
-                )
-                resource = resources[1]
-                assert resource == {
-                    "description": "IFRC Appeals QuickCharts data with HXL tags",
-                    "format": "csv",
-                    "name": "IFRC Appeals QuickCharts Data for Burundi",
-                }
-                filename = "qc_appeals_data_bdi.csv"
                 assert_files_same(
                     join(fixtures, filename), resource.get_file_to_upload()
                 )

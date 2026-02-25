@@ -8,6 +8,7 @@ import logging
 from os.path import expanduser, join
 
 from hdx.api.configuration import Configuration
+from hdx.api.utilities.hdx_state import HDXState
 from hdx.data.user import User
 from hdx.facades.infer_arguments import facade
 from hdx.scraper.ifrc._version import __version__
@@ -20,7 +21,6 @@ from hdx.utilities.path import (
     wheretostart_tempdir_batch,
 )
 from hdx.utilities.retriever import Retrieve
-from hdx.utilities.state import State
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +44,15 @@ def main(save: bool = False, use_saved: bool = False) -> None:
     User.check_current_user_write_access(
         "3ada79f1-a239-4e09-bb2e-55743b7e6b69", configuration=configuration
     )
-    with State("last_run_date.txt", parse_date, iso_string_from_datetime) as state:
-        with wheretostart_tempdir_batch(lookup) as info:
-            folder = info["folder"]
+    with wheretostart_tempdir_batch(lookup) as info:
+        folder = info["folder"]
+        with HDXState(
+            "pipeline-state-ifrc",
+            folder,
+            parse_date,
+            iso_string_from_datetime,
+            configuration,
+        ) as state:
             with Download() as downloader:
                 retriever = Retrieve(
                     downloader, folder, "saved_data", folder, save, use_saved
@@ -57,7 +63,6 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 (
                     appeal_rows,
                     appeal_country_rows,
-                    appeal_quickcharts,
                     appeal_countries_to_update,
                 ) = ifrc.get_appealdata()
                 countries_list = []
@@ -66,7 +71,6 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 (
                     whowhatwhere_rows,
                     whowhatwhere_country_rows,
-                    whowhatwhere_quickcharts,
                     whowhatwhere_countries_to_update,
                 ) = ifrc.get_whowhatwheredata()
                 if whowhatwhere_countries_to_update:
@@ -79,10 +83,7 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                 def create_dataset(
                     dataset,
                     showcase,
-                    qc_resource,
                     dataset_path,
-                    resource_view_path,
-                    quickcharts,
                 ):
                     if not dataset:
                         return
@@ -92,22 +93,8 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                     # ensure markdown has line breaks
                     dataset["notes"] = notes.replace("\n", "  \n")
 
-                    qcstatus = quickcharts.get("status_country")
-                    if qcstatus is None:
-                        findreplace = None
-                    else:
-                        countryiso = dataset.get_location_iso3s()[0]
-                        qcstatus_country = qcstatus.get(countryiso)
-                        if qcstatus_country is None:
-                            findreplace = None
-                        else:
-                            findreplace = {"{{#status+name}}": qcstatus_country}
-                    dataset.generate_quickcharts(
-                        qc_resource, path=resource_view_path, findreplace=findreplace
-                    )
                     dataset.create_in_hdx(
                         remove_additional_resources=True,
-                        hxl_update=False,
                         updated_by_script=updated_by_script,
                         batch=info["batch"],
                     )
@@ -120,97 +107,63 @@ def main(save: bool = False, use_saved: bool = False) -> None:
                     (
                         appeals_dataset,
                         showcase,
-                        qc_resource,
                     ) = ifrc.generate_dataset_and_showcase(
-                        folder, appeal_rows, "appeals", appeal_quickcharts
+                        folder, appeal_rows, "appeals"
                     )
                     create_dataset(
                         appeals_dataset,
                         showcase,
-                        qc_resource,
                         script_dir_plus_file(
                             join("config", "hdx_appeals_dataset.yaml"), main
                         ),
-                        script_dir_plus_file(
-                            join("config", "hdx_global_appeals_resource_view.yaml"),
-                            main,
-                        ),
-                        appeal_quickcharts,
                     )
                     (
                         whowhatwhere_dataset,
                         showcase,
-                        qc_resource,
                     ) = ifrc.generate_dataset_and_showcase(
                         folder,
                         whowhatwhere_rows,
                         "whowhatwhere",
-                        whowhatwhere_quickcharts,
                     )
                     create_dataset(
                         whowhatwhere_dataset,
                         showcase,
-                        qc_resource,
                         script_dir_plus_file(
                             join("config", "hdx_whowhatwhere_dataset.yaml"), main
                         ),
-                        script_dir_plus_file(
-                            join(
-                                "config", "hdx_global_whowhatwhere_resource_view.yaml"
-                            ),
-                            main,
-                        ),
-                        whowhatwhere_quickcharts,
                     )
                 for _, country in progress_storing_folder(info, countries, "iso3"):
                     countryiso = country["iso3"]
                     (
                         dataset,
                         showcase,
-                        qc_resource,
                     ) = ifrc.generate_dataset_and_showcase(
                         folder,
                         appeal_country_rows,
                         "appeals",
-                        appeal_quickcharts,
                         countryiso,
                         appeals_dataset,
                     )
                     create_dataset(
                         dataset,
                         showcase,
-                        qc_resource,
                         script_dir_plus_file(
                             join("config", "hdx_appeals_dataset.yaml"), main
                         ),
-                        script_dir_plus_file(
-                            join("config", "hdx_country_appeals_resource_view.yaml"),
-                            main,
-                        ),
-                        quickcharts=appeal_quickcharts,
                     )
-                    dataset, showcase, qc_resource = ifrc.generate_dataset_and_showcase(
+                    dataset, showcase = ifrc.generate_dataset_and_showcase(
                         folder,
                         whowhatwhere_country_rows,
                         "whowhatwhere",
-                        whowhatwhere_quickcharts,
                         countryiso,
                         whowhatwhere_dataset,
                     )
                     create_dataset(
                         dataset,
                         showcase,
-                        qc_resource,
                         script_dir_plus_file(
                             join("config", "hdx_whowhatwhere_dataset.yaml"), main
                         ),
-                        script_dir_plus_file(
-                            join(
-                                "config", "hdx_country_whowhatwhere_resource_view.yaml"
-                            ),
-                            main,
-                        ),
-                        quickcharts=whowhatwhere_quickcharts,
                     )
                 else:
                     logger.info("Nothing to update!")
