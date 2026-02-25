@@ -8,9 +8,7 @@ Reads IFRC data and creates datasets.
 """
 
 import logging
-from copy import deepcopy
 
-from dateutil.relativedelta import relativedelta
 from slugify import slugify
 
 from hdx.data.dataset import Dataset
@@ -46,19 +44,16 @@ class Pipeline:
     def download_data(self, url, basename, add_rows_fn):
         rows = []
         rows_by_country = {}
-        quickcharts = {}
         countries_to_update = {}
         i = 0
         while url:
             filename = basename.format(index=i)
             json = self.retriever.download_json(url, filename=filename)
             for row in json["results"]:
-                add_rows_fn(
-                    rows, rows_by_country, quickcharts, row, countries_to_update
-                )
+                add_rows_fn(rows, rows_by_country, row, countries_to_update)
             url = json["next"]
             i += 1
-        return rows, rows_by_country, quickcharts, countries_to_update
+        return rows, rows_by_country, countries_to_update
 
     def get_countries(self):
         dataset_info = self.configuration["countries"]
@@ -66,27 +61,25 @@ class Pipeline:
         url = f"{self.base_url}{country_path}{self.get_params}"
         filename = dataset_info["filename"]
 
-        def add_rows(rows, rows_by_country, quickcharts, row, countries_to_update):
+        def add_rows(rows, rows_by_country, row, countries_to_update):
             countryiso = row["iso3"]
             ifrc_id = row["id"]
             rows_by_country[countryiso] = ifrc_id
 
-        _, self.iso3_to_id, _, _ = self.download_data(
-            url, filename, add_rows_fn=add_rows
-        )
+        _, self.iso3_to_id, _ = self.download_data(url, filename, add_rows_fn=add_rows)
 
     def get_appealdata(self):
         dataset_info = self.configuration["appeals"]
         publish = dataset_info["publish"]
         if not publish:
-            return None, None, None, None
+            return None, None, None
         appeal_path = dataset_info["url_path"]
         additional_params = dataset_info["additional_params"]
         url = f"{self.base_url}{appeal_path}{self.get_params}{additional_params}2020-01-01T00:00:00"
         filename = dataset_info["filename"]
         indicators = {}
 
-        def add_row(rows, rows_by_country, quickcharts, row, countries_to_update):
+        def add_row(rows, rows_by_country, row, countries_to_update):
             status = row["status"]
             if status == 3:  # Ignore Archived status
                 return
@@ -129,74 +122,24 @@ class Pipeline:
             rows.append(row)
             dict_of_lists_add(rows_by_country, countryiso, row)
 
-        rows, rows_by_country, quickcharts, countries_to_update = self.download_data(
+        rows, rows_by_country, countries_to_update = self.download_data(
             url, filename, add_rows_fn=add_row
         )
-        oneyearago = self.now - relativedelta(years=1)
-        last_year = oneyearago.year
-        current_month = self.now.month
-        tensyearsago = self.now - relativedelta(years=10)
-        min_year = tensyearsago.year
 
-        qcrows = []
-        qcrows_by_country = {}
-        for year_month in sorted(indicators):
-            year, month = year_month.split("-")
-            year = int(year)
-            if year < min_year:
-                continue
-            month = int(month)
-            if year == min_year and month < current_month:
-                continue
-            row = {"Year": f"{year}-01-01", "Year Month": f"{year_month}-01"}
-            if year > last_year or (year == last_year and month > current_month):
-                row["Last Year"] = "Y"
-            else:
-                row["Last Year"] = "N"
-            monthly_indicators = indicators[year_month]
-            global_indicators = {
-                "DREFs": {"number": 0, "funded": 0, "beneficiaries": 0},
-                "Appeals": {"number": 0, "funded": 0, "beneficiaries": 0},
-            }
-            for countryiso in sorted(monthly_indicators):
-                country_indicators = monthly_indicators[countryiso]
-                for atype in sorted(country_indicators):
-                    country_indicators_atype = country_indicators[atype]
-                    number = country_indicators_atype["number"]
-                    global_indicators[atype]["number"] += number
-                    beneficiaries = country_indicators_atype["beneficiaries"]
-                    global_indicators[atype]["beneficiaries"] += beneficiaries
-                    funded = country_indicators_atype["funded"]
-                    global_indicators[atype]["funded"] += funded
-                    country_row = deepcopy(row)
-                    country_row["Appeal Type"] = atype
-                    country_row["Number of Appeals"] = number
-                    country_row["Funded"] = funded
-                    country_row["Beneficiaries"] = beneficiaries
-                    dict_of_lists_add(qcrows_by_country, countryiso, country_row)
-            for atype in sorted(global_indicators):
-                global_row = deepcopy(row)
-                global_row["Appeal Type"] = atype
-                global_row["Number of Appeals"] = global_indicators[atype]["number"]
-                global_row["Funded"] = global_indicators[atype]["funded"]
-                global_row["Beneficiaries"] = global_indicators[atype]["beneficiaries"]
-                qcrows.append(global_row)
-
-        quickcharts = {"rows": qcrows, "rows_by_country": qcrows_by_country}
-        return rows, rows_by_country, quickcharts, countries_to_update
+        return rows, rows_by_country, countries_to_update
 
     def get_whowhatwheredata(self):
         dataset_info = self.configuration["whowhatwhere"]
         publish = dataset_info["publish"]
         if not publish:
-            return None, None, None, None
+            return None, None, None
 
         whowhatwhere_path = dataset_info["url_path"]
         additional_params = dataset_info["additional_params"]
         url = f"{self.base_url}{whowhatwhere_path}{self.get_params}{additional_params}{self.last_run_date}T00:00:00"
         filename = dataset_info["filename"]
 
-        def add_row(rows, rows_by_country, quickcharts, row, countries_to_update):
+        def add_row(rows, rows_by_country, row, countries_to_update):
             countryiso = row["project_country_detail"]["iso3"]
             countryname = Country.get_country_name_from_iso3(countryiso)
             district_names = ", ".join(
@@ -247,11 +190,6 @@ class Pipeline:
             }
             rows.append(row)
             dict_of_lists_add(rows_by_country, countryiso, row)
-            quickcharts = quickcharts.get("status_country", {})
-            qc_status = quickcharts.get(countryiso)
-            if qc_status is None or status_display == "Ongoing":
-                quickcharts[countryiso] = status_display
-            quickcharts["status_country"] = quickcharts
 
         return self.download_data(url, filename, add_rows_fn=add_row)
 
@@ -260,13 +198,12 @@ class Pipeline:
         folder,
         rows,
         dataset_type,
-        quickcharts,
         countryiso=None,
         global_dataset=None,
     ):
         """ """
         if rows is None:
-            return None, None, None
+            return None, None
         dataset_info = self.configuration[dataset_type]
         heading = dataset_info["heading"]
         global_name = f"Global IFRC {heading} Data"
@@ -275,7 +212,7 @@ class Pipeline:
             countryname = Country.get_country_name_from_iso3(countryiso)
             if countryname is None:
                 logger.error(f"Unknown ISO 3 code {countryiso}!")
-                return None, None, None
+                return None, None
             title = f"{countryname} - IFRC {heading}"
             name = f"IFRC {heading} Data for {countryname}"
             filename = f"{heading.lower()}_data_{countryiso.lower()}.csv"
@@ -305,12 +242,11 @@ class Pipeline:
         else:
             dataset.add_other_location("world")
 
-        tags = ["hxl"] + dataset_info["tags"]
-        dataset.add_tags(tags)
+        dataset.add_tags(dataset_info["tags"])
 
         resourcedata = {
             "name": name,
-            "description": f"IFRC {heading} data with HXL tags",
+            "description": f"IFRC {heading} data",
         }
 
         def process_date(row):
@@ -336,41 +272,19 @@ class Pipeline:
                 logger.warning(f"End date year < 1900 for {society} {identifier}")
             return result
 
-        success, results = dataset.generate_resource_from_iterator(
-            list(rows[0].keys()),
-            rows,
-            dataset_info["hxltags"],
+        success, results = dataset.generate_resource(
             folder,
             filename,
+            rows,
             resourcedata,
+            list(rows[0].keys()),
             date_function=process_date,
         )
+
         if success is False:
             logger.warning(f"{name} has no data!")
-            return None, None, None
+            return None, None
 
-        if not countryiso:
-            qcrows = quickcharts.get("rows")
-        else:
-            qcrows_by_country = quickcharts.get("rows_by_country", {})
-            qcrows = qcrows_by_country.get(countryiso)
-        if qcrows:
-            resourcedata = {
-                "name": name.replace("Data", "QuickCharts Data"),
-                "description": f"IFRC {heading} QuickCharts data with HXL tags",
-            }
-            success, results = dataset.generate_resource_from_iterator(
-                list(qcrows[0].keys()),
-                qcrows,
-                dataset_info["quickcharts_hxltags"],
-                folder,
-                f"qc_{filename}",
-                resourcedata,
-            )
-        if success is False:
-            qc_resource = None
-        else:
-            qc_resource = results["resource"]
         showcase_urls = dataset_info["showcase_urls"]
         if countryiso:
             showcase_url = showcase_urls.get("country")
@@ -388,7 +302,7 @@ class Pipeline:
                     "image_url": "https://avatars.githubusercontent.com/u/22204810?s=200&v=4",
                 }
             )
-            showcase.add_tags(tags)
+            showcase.add_tags(dataset_info["tags"])
         else:
             showcase = None
-        return dataset, showcase, qc_resource
+        return dataset, showcase
